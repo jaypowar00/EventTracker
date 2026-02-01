@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  passwordHash  String
+  role          String    @default("PARTICIPANT") // SUPER_ADMIN, EVENT_ADMIN, PARTICIPANT
+  publicId      String    @unique // Generated in code: 10000-99999
+  createdAt     DateTime  @default(now())
+  
+  // Participant Experience
+  hasSeenWelcome Boolean @default(false)
+  avatarIndex    Int     @default(0)
+  
+  // Relations
+  memberships   TeamMember[]
+  entries       Entry[]
+  createdRequests TeamRequest[]
+  
+  // Tie to a specific event (for EVENT_ADMIN and PARTICIPANT)
+  eventId       String?
+  event         Event?    @relation("EventUsers", fields: [eventId], references: [id])
+  
+  // Track events created by this user (typically SUPER_ADMIN)
+  createdEvents Event[]   @relation("EventCreator")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  status      String   @default("ONGOING") // ONGOING, FINISHED
+  createdAt   DateTime @default(now())
+  
+  createdByUserId String
+  createdByUser   User   @relation("EventCreator", fields: [createdByUserId], references: [id])
+
+  // Relations
+  users       User[]   @relation("EventUsers")
+  teams       Team[]
+  items       Item[]
+  rules       String?  // Event-specific rules/guidelines
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  publicId    String   @unique // Generated in code: 10000-99999
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  createdAt   DateTime @default(now())
+  iconIndex   Int      @default(0)
+  
+  // Relations
+  members     TeamMember[]
+  entries     Entry[]
+  pointHistory PointHistory[]
+  requests    TeamRequest[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  userId    String
+  teamId    String
+  joinedAt  DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, teamId])
+}
+
+model Item {
+  id            String   @id @default(uuid())
+  name          String
+  defaultPoints Int      @default(1)
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id])
+  
+  entries       Entry[]
+}
+
+model Entry {
+  id            String   @id @default(uuid())
+  count         Int
+  pointsAwarded Int
+  timestamp     DateTime @default(now())
+  
+  userId        String
+  teamId        String
+  itemId        String
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team          Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  item          Item     @relation(fields: [itemId], references: [id])
+}
+
+model PointHistory {
+  id          String   @id @default(uuid())
+  points      Int
+  reason      String // e.g., "Entry: Milk Shake x14", "Admin Adjustment"
+  timestamp   DateTime @default(now())
+  
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model TeamRequest {
+  id          String   @id @default(uuid())
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  teamId      String
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // e.g., "CREATE_EVENT", "DELETE_USER", "UPDATE_POINTS"
+  details     String   // JSON string of changes or description
+  actorId     String?  // ID of the user who performed the action (nullable for deletion)
+  actorName   String   // Name preserved for history (username)
+  actorRole   String   // Role preserved for history
+  eventId     String?  // Optional context
+  timestamp   DateTime @default(now())
+}
