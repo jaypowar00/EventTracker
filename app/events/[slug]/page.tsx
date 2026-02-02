@@ -36,7 +36,9 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [loading, setLoading] = useState(false);
-    const [entryData, setEntryData] = useState({ itemName: '', quantity: '1' });
+    const [entryData, setEntryData] = useState({ itemName: '', quantity: '1', volume: '330', percentage: '4.8' });
+    const [itemSearch, setItemSearch] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [editedRules, setEditedRules] = useState('');
     const [editedEvent, setEditedEvent] = useState({ name: '', slug: '' });
 
@@ -83,6 +85,8 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 body: JSON.stringify({
                     itemName: entryData.itemName,
                     quantity: entryData.quantity,
+                    volume: entryData.volume,
+                    percentage: entryData.percentage,
                     eventId: event.id
                 })
             });
@@ -90,7 +94,8 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             if (!data.status) throw new Error(data.message);
 
             setIsEntryModalOpen(false);
-            setEntryData({ itemName: '', quantity: '1' });
+            setEntryData({ itemName: '', quantity: '1', volume: '330', percentage: '4.8' });
+            setItemSearch('');
             mutateLeaderboard();
             mutateHistory();
         } catch (err: any) {
@@ -148,7 +153,11 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
         try {
             const res = await fetch(`/api/items/${editingItem.id}`, {
                 method: 'PATCH',
-                body: JSON.stringify({ defaultPoints: editingItem.defaultPoints })
+                body: JSON.stringify({
+                    name: editingItem.name,
+                    defaultVolume: editingItem.defaultVolume,
+                    defaultPercentage: editingItem.defaultPercentage
+                })
             });
             const data = await res.json();
             if (!data.status) throw new Error(data.message);
@@ -193,6 +202,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     };
 
     const { data: allItems, mutate: mutateItems } = useSWR(isItemsModalOpen ? `/api/events/${slug}/items?q=${searchQuery}` : null, fetcher);
+    const { data: itemSuggestions } = useSWR(isEntryModalOpen && itemSearch.length > 0 ? `/api/events/${slug}/items?q=${itemSearch}` : null, fetcher);
 
     const handleDeleteEntry = async (entryId: string) => {
         if (!confirm('Are you sure you want to delete this entry? This will revert the points.')) return;
@@ -377,6 +387,10 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                     <button onClick={() => setIsRulesModalOpen(true)} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>📜 Set Rules</button>
                                 ) : (
                                     <button onClick={() => setIsRulesModalOpen(true)} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>📜 Event Rules</button>
+                                )}
+
+                                {['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) && (
+                                    <button onClick={() => setIsSettingsModalOpen(true)} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>⚙️ Event Settings</button>
                                 )}
 
                                 <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0.4rem 0' }} />
@@ -662,16 +676,88 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 title="Add New Entry"
                 closeOnOutsideClick={false}
             >
-                <form onSubmit={handleAddEntry} className={modalStyles.form}>
-                    <div>
+                <form onSubmit={handleAddEntry} className={modalStyles.form} onClick={() => setShowSuggestions(false)}>
+                    <div style={{ position: 'relative' }}>
                         <label className={loginStyles.label}>Item Name</label>
                         <input
                             className={loginStyles.input}
                             required
                             value={entryData.itemName}
-                            onChange={e => setEntryData({ ...entryData, itemName: e.target.value })}
-                            placeholder="Example: Milk Shake, Laptop Consumed..."
+                            onChange={e => {
+                                setEntryData({ ...entryData, itemName: e.target.value });
+                                setItemSearch(e.target.value);
+                                setShowSuggestions(true);
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="Example: Beer, Wine, Cider..."
                         />
+                        {showSuggestions && itemSuggestions && itemSuggestions.length > 0 && (
+                            <div className="glass-panel" style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 100,
+                                background: 'hsl(var(--card))',
+                                border: '1px solid var(--border)',
+                                borderRadius: '0.5rem',
+                                marginTop: '4px',
+                                maxHeight: '200px',
+                                overflowY: 'auto',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+                            }}>
+                                {itemSuggestions.map((item: any) => (
+                                    <div
+                                        key={item.id}
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}
+                                        className="suggestion-item"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEntryData({
+                                                ...entryData,
+                                                itemName: item.name,
+                                                volume: item.defaultVolume?.toString() || entryData.volume,
+                                                percentage: item.defaultPercentage?.toString() || entryData.percentage
+                                            });
+                                            setShowSuggestions(false);
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 600 }}>{item.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                                            Preset: {item.defaultVolume}ml • {item.defaultPercentage}%
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div>
+                            <label className={loginStyles.label}>Volume (ml)</label>
+                            <input
+                                type="number"
+                                className={loginStyles.input}
+                                required
+                                min="1"
+                                value={entryData.volume}
+                                onChange={e => setEntryData({ ...entryData, volume: e.target.value })}
+                                placeholder="e.g. 330"
+                            />
+                        </div>
+                        <div>
+                            <label className={loginStyles.label}>Percentage (%)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                className={loginStyles.input}
+                                required
+                                min="0"
+                                value={entryData.percentage}
+                                onChange={e => setEntryData({ ...entryData, percentage: e.target.value })}
+                                placeholder="e.g. 4.8"
+                            />
+                        </div>
                     </div>
                     <div>
                         <label className={loginStyles.label}>Quantity</label>
@@ -683,6 +769,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             value={entryData.quantity}
                             onChange={e => setEntryData({ ...entryData, quantity: e.target.value })}
                         />
+                    </div>
+                    <div style={{ background: 'hsl(var(--primary) / 0.05)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid hsl(var(--primary) / 0.1)' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Estimated Points</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'hsl(var(--primary))' }}>
+                            {Math.round((parseInt(entryData.volume || '0') * parseFloat(entryData.percentage || '0') * parseInt(entryData.quantity || '0')) / 10)} pts
+                        </div>
                     </div>
                     <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '-0.5rem' }}>
                         * Items are subject to point verification by admins.
@@ -796,7 +888,9 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             <div key={item.id} className="glass-panel" style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0.75rem' }}>
                                 <div style={{ fontWeight: 600 }}>{item.name}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{ fontSize: '0.875rem', color: 'hsl(var(--primary))', fontWeight: 700 }}>{item.defaultPoints} pts</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', textAlign: 'right' }}>
+                                        {item.defaultVolume}ml • {item.defaultPercentage}%
+                                    </div>
                                     <button
                                         onClick={() => setEditingItem(item)}
                                         style={{ padding: '0.25rem 0.5rem', background: 'hsl(var(--foreground) / 0.05)', border: '1px solid var(--border)', borderRadius: '0.4rem', cursor: 'pointer', fontSize: '0.75rem' }}
@@ -821,16 +915,30 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{editingItem.name}</h3>
                             <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>Current Baseline Points</p>
                         </div>
-                        <div>
-                            <label className={loginStyles.label}>Default Points</label>
-                            <input
-                                type="number"
-                                className={loginStyles.input}
-                                required
-                                min="0"
-                                value={editingItem.defaultPoints}
-                                onChange={e => setEditingItem({ ...editingItem, defaultPoints: e.target.value })}
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label className={loginStyles.label}>Volume (ml)</label>
+                                <input
+                                    type="number"
+                                    className={loginStyles.input}
+                                    required
+                                    min="0"
+                                    value={editingItem.defaultVolume}
+                                    onChange={e => setEditingItem({ ...editingItem, defaultVolume: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className={loginStyles.label}>Percentage (%)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className={loginStyles.input}
+                                    required
+                                    min="0"
+                                    value={editingItem.defaultPercentage}
+                                    onChange={e => setEditingItem({ ...editingItem, defaultPercentage: e.target.value })}
+                                />
+                            </div>
                         </div>
                         <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '-0.5rem' }}>
                             * This will affect all FUTURE entries of this item for this event.
