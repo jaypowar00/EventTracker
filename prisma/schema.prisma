@@ -81,18 +81,22 @@ model TeamMember {
 }
 
 model Item {
-  id            String   @id @default(uuid())
-  name          String
-  defaultPoints Int      @default(1)
-  eventId       String
-  event         Event    @relation(fields: [eventId], references: [id])
+  id                String   @id @default(uuid())
+  name              String
+  defaultPoints     Int      @default(1)
+  defaultVolume     Int      @default(0) // volume in ml
+  defaultPercentage Float    @default(0) // ABV percentage
+  eventId           String
+  event             Event    @relation(fields: [eventId], references: [id])
   
-  entries       Entry[]
+  entries           Entry[]
 }
 
 model Entry {
   id            String   @id @default(uuid())
   count         Int
+  volume        Int      @default(0)
+  percentage    Float    @default(0)
   pointsAwarded Int
   timestamp     DateTime @default(now())
   

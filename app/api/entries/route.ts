@@ -21,13 +21,16 @@ export async function POST(request: Request) {
 
         // 2. Input Validation
         const body = await request.json();
-        const { itemName, quantity, eventId } = body;
+        const { itemName, quantity, volume, percentage, eventId } = body;
 
         if (!itemName || !quantity || !eventId) {
             return NextResponse.json({ status: false, message: 'Item Name, Quantity and Event ID are required' }, { status: 200 });
         }
 
         const count = parseInt(quantity);
+        const vol = parseInt(volume || '0');
+        const perc = parseFloat(percentage || '0');
+
         if (isNaN(count) || count <= 0) {
             return NextResponse.json({ status: false, message: 'Quantity must be a positive number' }, { status: 200 });
         }
@@ -67,17 +70,33 @@ export async function POST(request: Request) {
             item = await prisma.item.create({
                 data: {
                     name: itemName,
-                    defaultPoints: 1, // Default as requested
+                    defaultPoints: 1,
+                    defaultVolume: vol,
+                    defaultPercentage: perc,
                     eventId: eventId
+                }
+            });
+        } else if (item.defaultVolume === 0 && item.defaultPercentage === 0 && (vol > 0 || perc > 0)) {
+            // Update "legacy" or empty presets automatically
+            item = await prisma.item.update({
+                where: { id: item.id },
+                data: {
+                    defaultVolume: vol,
+                    defaultPercentage: perc
                 }
             });
         }
 
         // 5. Create Entry
+        // Formula: (Volume * Percentage * Quantity) / 10 (Scaled up 10x to remove decimals)
+        const calculatedPoints = Math.round((vol * perc * count) / 10);
+
         const entry = await prisma.entry.create({
             data: {
                 count: count,
-                pointsAwarded: count * item.defaultPoints, // Snapshot value
+                volume: vol,
+                percentage: perc,
+                pointsAwarded: calculatedPoints,
                 userId: user.id,
                 teamId: team.id,
                 itemId: item.id
@@ -91,6 +110,9 @@ export async function POST(request: Request) {
                 entryId: entry.id,
                 itemName: item.name,
                 count: count,
+                volume: vol,
+                percentage: perc,
+                points: calculatedPoints,
                 teamId: team.id,
                 eventId: eventId
             },

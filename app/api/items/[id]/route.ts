@@ -41,11 +41,13 @@ export async function PATCH(
 
         // 4. Update Logic
         const body = await request.json();
-        const { defaultPoints, name } = body;
+        const { defaultPoints, name, defaultVolume, defaultPercentage } = body;
 
         const updateData: any = {};
         if (defaultPoints !== undefined) updateData.defaultPoints = parseInt(defaultPoints);
         if (name) updateData.name = name;
+        if (defaultVolume !== undefined) updateData.defaultVolume = parseInt(defaultVolume);
+        if (defaultPercentage !== undefined) updateData.defaultPercentage = parseFloat(defaultPercentage);
 
         const updatedItem = await prisma.item.update({
             where: { id: id },
