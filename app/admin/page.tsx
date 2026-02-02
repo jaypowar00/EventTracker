@@ -16,10 +16,15 @@ export default function AdminDashboard() {
     const { data: events, error, mutate } = useSWR('/api/events', fetcher, { refreshInterval: 5000 });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
-    const [newEventName, setNewEventName] = useState('');
-    const [newEventSlug, setNewEventSlug] = useState('');
+    const [newEventData, setNewEventData] = useState({ name: '', slug: '', startDate: '', endDate: '', status: 'UPCOMING' });
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState('');
+
+    // For editing existing events
+    const [editingEvent, setEditingEvent] = useState<any>(null);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
+    const [selectedEventForItems, setSelectedEventForItems] = useState<any>(null);
 
     const [newUsername, setNewUsername] = useState('');
     const [newUserRole, setNewUserRole] = useState<'EVENT_ADMIN' | 'PARTICIPANT'>('EVENT_ADMIN');
@@ -28,6 +33,15 @@ export default function AdminDashboard() {
     const [createdCredentials, setCreatedCredentials] = useState<any>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedEventId, setSelectedEventId] = useState('');
+
+    const slugify = (text: string) => {
+        return text
+            .toLowerCase()
+            .trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    };
 
     const handleDeleteEvent = async (eventId: string) => {
         if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
@@ -46,40 +60,58 @@ export default function AdminDashboard() {
         }
     };
 
-    const slugify = (text: string) => {
-        return text
-            .toLowerCase()
-            .trim()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/[\s_]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-    };
-
     const handleNameChange = (name: string) => {
-        setNewEventName(name);
-        if (!newEventSlug || newEventSlug === slugify(newEventName)) {
-            setNewEventSlug(slugify(name));
-        }
+        const slug = slugify(name);
+        setNewEventData(prev => ({
+            ...prev,
+            name,
+            slug: prev.slug === slugify(prev.name) ? slug : prev.slug
+        }));
     };
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setCreating(true);
         setCreateError('');
-        const finalSlug = newEventSlug || slugify(newEventName);
         try {
             const res = await fetch('/api/events', {
                 method: 'POST',
-                body: JSON.stringify({ name: newEventName, slug: finalSlug }),
+                body: JSON.stringify(newEventData),
             });
             const data = await res.json();
             if (!data.status) throw new Error(data.message);
-            setNewEventName('');
-            setNewEventSlug('');
+            setNewEventData({ name: '', slug: '', startDate: '', endDate: '', status: 'UPCOMING' });
             setIsModalOpen(false);
             mutate();
         } catch (err: any) {
             setCreateError(err.message);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleUpdateEvent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingEvent) return;
+        setCreating(true);
+        try {
+            const res = await fetch(`/api/events/${editingEvent.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    name: editingEvent.name,
+                    status: editingEvent.status,
+                    startDate: editingEvent.startDate,
+                    endDate: editingEvent.endDate,
+                    newSlug: editingEvent.slug
+                })
+            });
+            const data = await res.json();
+            if (!data.status) throw new Error(data.message);
+            setIsSettingsModalOpen(false);
+            setEditingEvent(null);
+            mutate();
+        } catch (err: any) {
+            alert(err.message);
         } finally {
             setCreating(false);
         }
@@ -281,40 +313,47 @@ export default function AdminDashboard() {
                             {events.map((event: any) => (
                                 <div
                                     key={event.id}
-                                    onClick={(e) => {
-                                        // Ignore if delete button was clicked
-                                        if ((e.target as HTMLElement).closest('button')) return;
-                                        window.location.href = `/events/${event.slug}`;
-                                    }}
                                     className="glass-panel"
                                     style={{
                                         padding: '1.5rem',
                                         borderRadius: '1rem',
                                         border: '1px solid rgba(255, 255, 255, 0.05)',
-                                        cursor: 'pointer',
-                                        transition: 'transform 0.2s ease, background 0.2s ease'
+                                        transition: 'background 0.2s ease'
                                     }}
-                                    onMouseOver={(e) => e.currentTarget.style.background = 'hsl(var(--foreground) / 0.03)'}
-                                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>{event.name}</h3>
+                                        <div onClick={() => window.location.href = `/events/${event.slug}`} style={{ cursor: 'pointer' }}>
+                                            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>{event.name}</h3>
                                             <code style={{ fontSize: '0.875rem', color: 'hsl(var(--primary))', padding: '0.25rem 0.5rem', background: 'hsl(var(--primary) / 0.1)', borderRadius: '0.25rem' }}>/{event.slug}</code>
                                         </div>
-                                        <span style={{ padding: '0.375rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600, background: event.status === 'ONGOING' ? 'hsl(var(--success) / 0.15)' : 'hsl(var(--muted) / 0.15)', color: event.status === 'ONGOING' ? 'hsl(var(--success))' : 'hsl(var(--muted))' }}>{event.status}</span>
+                                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                            <span style={{ padding: '0.375rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600, background: event.status === 'ONGOING' ? 'hsl(var(--success) / 0.15)' : event.status === 'UPCOMING' ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--muted) / 0.15)', color: event.status === 'ONGOING' ? 'hsl(var(--success))' : event.status === 'UPCOMING' ? 'hsl(var(--primary))' : 'hsl(var(--muted))' }}>{event.status}</span>
+                                            <button onClick={() => { setEditingEvent(event); setIsSettingsModalOpen(true); }} className="glass-panel" style={{ padding: '0.4rem 0.8rem', background: 'hsl(var(--foreground) / 0.05)', border: '1px solid var(--border)', color: 'hsl(var(--foreground))', borderRadius: '0.4rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>⚙️ Settings</button>
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+
+                                    {(event.startDate || event.endDate) && (
+                                        <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            <span>📅</span>
+                                            <span>
+                                                {event.startDate ? new Date(event.startDate).toLocaleDateString() : 'TBA'}
+                                                {event.endDate ? ` — ${new Date(event.endDate).toLocaleDateString()}` : ''}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                                         <div>
                                             <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase' }}>Teams</div>
-                                            <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{event._count.teams}</div>
+                                            <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{event._count?.teams || 0}</div>
                                         </div>
                                         <div>
                                             <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase' }}>Participants</div>
-                                            <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{event._count.participants || 0}</div>
+                                            <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{event._count?.participants || 0}</div>
                                         </div>
-                                        <div style={{ marginLeft: 'auto' }}>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event.id); }} style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>Delete</button>
+                                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem' }}>
+                                            <button onClick={() => { setSelectedEventForItems(event); setIsItemsModalOpen(true); }} className="glass-panel" style={{ padding: '0.5rem 1rem', background: 'hsl(var(--primary) / 0.1)', border: '1px solid hsl(var(--primary) / 0.2)', color: 'hsl(var(--primary))', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>📦 Items</button>
+                                            <button onClick={() => handleDeleteEvent(event.id)} style={{ padding: '0.5rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>Delete</button>
                                         </div>
                                     </div>
                                 </div>
@@ -328,13 +367,31 @@ export default function AdminDashboard() {
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Event">
                 <form onSubmit={handleCreate} className={modalStyles.form}>
                     {createError && <div className={loginStyles.error}>{createError}</div>}
-                    <div>
-                        <label className={loginStyles.label}>Event Name</label>
-                        <input className={loginStyles.input} value={newEventName} onChange={e => handleNameChange(e.target.value)} placeholder="e.g. Summer Camp 2026" required />
-                    </div>
-                    <div>
-                        <label className={loginStyles.label}>URL Slug (optional)</label>
-                        <input className={loginStyles.input} value={newEventSlug} onChange={e => setNewEventSlug(e.target.value)} placeholder="Auto-generated" />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label className={loginStyles.label}>Event Name</label>
+                            <input className={loginStyles.input} value={newEventData.name} onChange={e => handleNameChange(e.target.value)} placeholder="e.g. Summer Camp 2026" required />
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label className={loginStyles.label}>URL Slug</label>
+                            <input className={loginStyles.input} value={newEventData.slug} onChange={e => setNewEventData({ ...newEventData, slug: e.target.value })} placeholder="Auto-generated" />
+                        </div>
+                        <div>
+                            <label className={loginStyles.label}>Start Date</label>
+                            <input type="date" className={loginStyles.input} value={newEventData.startDate} onChange={e => setNewEventData({ ...newEventData, startDate: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className={loginStyles.label}>End Date</label>
+                            <input type="date" className={loginStyles.input} value={newEventData.endDate} onChange={e => setNewEventData({ ...newEventData, endDate: e.target.value })} />
+                        </div>
+                        <div style={{ gridColumn: 'span 2' }}>
+                            <label className={loginStyles.label}>Initial Status</label>
+                            <select className={loginStyles.input} value={newEventData.status} onChange={e => setNewEventData({ ...newEventData, status: e.target.value })}>
+                                <option value="UPCOMING">Upcoming</option>
+                                <option value="ONGOING">Ongoing</option>
+                                <option value="FINISHED">Finished</option>
+                            </select>
+                        </div>
                     </div>
                     <div className={modalStyles.footer}>
                         <button type="button" onClick={() => setIsModalOpen(false)} className={modalStyles.cancelBtn}>Cancel</button>
@@ -360,13 +417,14 @@ export default function AdminDashboard() {
                             </select>
                         </div>
                         <div>
-                            <label className={loginStyles.label}>Associated Event (Optional)</label>
+                            <label className={loginStyles.label}>Associated Event (Choose one or more)</label>
                             <select className={loginStyles.input} value={selectedEventId} onChange={e => setSelectedEventId(e.target.value)}>
                                 <option value="">None (Global Access)</option>
                                 {events?.map((event: any) => (
                                     <option key={event.id} value={event.id}>{event.name}</option>
                                 ))}
                             </select>
+                            <p style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.4rem' }}>Note: You can add more events later in User Management.</p>
                         </div>
                         <div className={modalStyles.footer}>
                             <button type="button" onClick={closeAdminModal} className={modalStyles.cancelBtn}>Cancel</button>
@@ -388,6 +446,59 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+            </Modal>
+
+            {/* Event Settings Modal */}
+            <Modal isOpen={isSettingsModalOpen} onClose={() => { setIsSettingsModalOpen(false); setEditingEvent(null); }} title="Event Settings">
+                {editingEvent && (
+                    <form onSubmit={handleUpdateEvent} className={modalStyles.form}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label className={loginStyles.label}>Event Name</label>
+                                <input className={loginStyles.input} value={editingEvent.name} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} required />
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label className={loginStyles.label}>URL Slug</label>
+                                <input className={loginStyles.input} value={editingEvent.slug} onChange={e => setEditingEvent({ ...editingEvent, slug: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className={loginStyles.label}>Start Date</label>
+                                <input type="date" className={loginStyles.input} value={editingEvent.startDate ? new Date(editingEvent.startDate).toISOString().split('T')[0] : ''} onChange={e => setEditingEvent({ ...editingEvent, startDate: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className={loginStyles.label}>End Date</label>
+                                <input type="date" className={loginStyles.input} value={editingEvent.endDate ? new Date(editingEvent.endDate).toISOString().split('T')[0] : ''} onChange={e => setEditingEvent({ ...editingEvent, endDate: e.target.value })} />
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label className={loginStyles.label}>Status</label>
+                                <select className={loginStyles.input} value={editingEvent.status} onChange={e => setEditingEvent({ ...editingEvent, status: e.target.value })}>
+                                    <option value="UPCOMING">Upcoming</option>
+                                    <option value="ONGOING">Ongoing</option>
+                                    <option value="FINISHED">Finished</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className={modalStyles.footer}>
+                            <button type="button" onClick={() => { setIsSettingsModalOpen(false); setEditingEvent(null); }} className={modalStyles.cancelBtn}>Cancel</button>
+                            <button type="submit" disabled={creating} className={modalStyles.submitBtn}>{creating ? 'Saving...' : 'Save Settings'}</button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
+
+            {/* Item Management Placeholder/Redirect Modal */}
+            <Modal isOpen={isItemsModalOpen} onClose={() => { setIsItemsModalOpen(false); setSelectedEventForItems(null); }} title={`Manage Items - ${selectedEventForItems?.name}`}>
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                    <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '2rem' }}>You can manage beverage items and point presets for this event.</p>
+                    <button
+                        onClick={() => window.location.href = `/events/${selectedEventForItems?.slug}`}
+                        className={loginStyles.button}
+                        style={{ width: '100%' }}
+                    >
+                        Go to Event Page to Manage Items
+                    </button>
+                    <p style={{ marginTop: '1rem', fontSize: '0.75rem', opacity: 0.6 }}>Full item management integration coming soon to this dashboard.</p>
+                </div>
             </Modal>
         </div>
     );

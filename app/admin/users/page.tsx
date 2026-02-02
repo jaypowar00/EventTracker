@@ -29,7 +29,7 @@ export default function UserManagementPage() {
     const [newUser, setNewUser] = useState({
         username: '',
         role: 'PARTICIPANT',
-        eventId: '',
+        eventIds: [] as string[],
         password: ''
     });
 
@@ -48,7 +48,7 @@ export default function UserManagementPage() {
                 body: JSON.stringify({
                     username: newUser.username,
                     role: newUser.role,
-                    eventId: newUser.eventId || undefined,
+                    eventIds: newUser.eventIds,
                     password: newUser.password || undefined
                 })
             });
@@ -56,7 +56,7 @@ export default function UserManagementPage() {
             if (!data.status) throw new Error(data.message);
 
             setIsAddModalOpen(false);
-            setNewUser({ username: '', role: 'PARTICIPANT', eventId: '', password: '' });
+            setNewUser({ username: '', role: 'PARTICIPANT', eventIds: [], password: '' });
             mutateUsers();
             setResetCreds(data.data.credentials);
         } catch (err: any) {
@@ -109,7 +109,7 @@ export default function UserManagementPage() {
                 method: 'PATCH',
                 body: JSON.stringify({
                     role: editingUser.role,
-                    eventId: editingUser.eventId || null
+                    eventIds: editingUser.eventIds || []
                 })
             });
             const data = await res.json();
@@ -212,7 +212,15 @@ export default function UserManagementPage() {
                                         <span style={getRoleBadgeStyle(user.role)}>{user.role}</span>
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.9rem' }}>
-                                        {user.event?.name || <span style={{ color: 'hsl(var(--muted-foreground))', opacity: 0.7 }}>Global Access</span>}
+                                        {user.events && user.events.length > 0 ? (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                                {user.events.map((e: any) => (
+                                                    <span key={e.slug} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>{e.name}</span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span style={{ color: 'hsl(var(--muted-foreground))', opacity: 0.7 }}>Global Access</span>
+                                        )}
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -243,7 +251,11 @@ export default function UserManagementPage() {
 
                             <div style={{ marginBottom: '1.25rem' }}>
                                 <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Event association</div>
-                                <div style={{ fontSize: '0.9rem' }}>{user.event?.name || 'Global'}</div>
+                                <div style={{ fontSize: '0.9rem' }}>
+                                    {user.events && user.events.length > 0
+                                        ? user.events.map((e: any) => e.name).join(', ')
+                                        : 'Global Access'}
+                                </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
@@ -270,23 +282,33 @@ export default function UserManagementPage() {
                         <label className={loginStyles.label}>Username</label>
                         <input className={loginStyles.input} required value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} placeholder="Enter username..." />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div>
-                            <label className={loginStyles.label}>Role</label>
-                            <select className={loginStyles.input} value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
-                                <option value="PARTICIPANT">Participant</option>
-                                <option value="EVENT_ADMIN">Event Admin</option>
-                                <option value="SUPER_ADMIN">Super Admin</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className={loginStyles.label}>Event</label>
-                            <select className={loginStyles.input} value={newUser.eventId} onChange={e => setNewUser({ ...newUser, eventId: e.target.value })}>
-                                <option value="">Global</option>
-                                {events?.map((e: any) => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
-                                ))}
-                            </select>
+                    <div>
+                        <label className={loginStyles.label}>Role</label>
+                        <select className={loginStyles.input} value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
+                            <option value="PARTICIPANT">Participant</option>
+                            <option value="EVENT_ADMIN">Event Admin</option>
+                            <option value="SUPER_ADMIN">Super Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className={loginStyles.label}>Events (Enroll in one or more)</label>
+                        <div className="glass-panel" style={{ maxHeight: '150px', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {events?.map((e: any) => (
+                                <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={newUser.eventIds.includes(e.id)}
+                                        onChange={(event) => {
+                                            const newIds = event.target.checked
+                                                ? [...newUser.eventIds, e.id]
+                                                : newUser.eventIds.filter(id => id !== e.id);
+                                            setNewUser({ ...newUser, eventIds: newIds });
+                                        }}
+                                    />
+                                    {e.name}
+                                </label>
+                            ))}
+                            {(!events || events.length === 0) && <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>No events found.</p>}
                         </div>
                     </div>
                     <div>
@@ -316,13 +338,25 @@ export default function UserManagementPage() {
                             </select>
                         </div>
                         <div>
-                            <label className={loginStyles.label}>Event</label>
-                            <select className={loginStyles.input} value={editingUser.eventId || ''} onChange={e => setEditingUser({ ...editingUser, eventId: e.target.value })}>
-                                <option value="">Global</option>
+                            <label className={loginStyles.label}>Events</label>
+                            <div className="glass-panel" style={{ maxHeight: '150px', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 {events?.map((e: any) => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
+                                    <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={(editingUser.eventIds || editingUser.events?.map((ev: any) => ev.id) || []).includes(e.id)}
+                                            onChange={(event) => {
+                                                const currentIds = editingUser.eventIds || editingUser.events?.map((ev: any) => ev.id) || [];
+                                                const newIds = event.target.checked
+                                                    ? [...currentIds, e.id]
+                                                    : currentIds.filter((id: string) => id !== e.id);
+                                                setEditingUser({ ...editingUser, eventIds: newIds });
+                                            }}
+                                        />
+                                        {e.name}
+                                    </label>
                                 ))}
-                            </select>
+                            </div>
                         </div>
                         <div className={modalStyles.footer}>
                             <button type="button" onClick={() => setIsEditModalOpen(false)} className={modalStyles.cancelBtn}>Cancel</button>
