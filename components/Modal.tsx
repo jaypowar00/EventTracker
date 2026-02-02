@@ -9,6 +9,7 @@ interface ModalProps {
     hideClose?: boolean;
     closeOnOutsideClick?: boolean;
     className?: string;
+    onClick?: () => void;
 }
 
 export default function Modal({
@@ -18,7 +19,8 @@ export default function Modal({
     children,
     hideClose,
     closeOnOutsideClick = true,
-    className = ''
+    className = '',
+    onClick
 }: ModalProps) {
     // Close on Escape key
     useEffect(() => {
@@ -35,14 +37,21 @@ export default function Modal({
     if (!isOpen) return null;
 
     const handleOverlayClick = () => {
+        handleOnClick();
         if (closeOnOutsideClick) {
             onClose();
         }
     };
 
+    const handleOnClick = () => {
+        if (onClick) {
+            onClick();
+        }
+    }
+
     return (
         <div className={styles.overlay} onClick={handleOverlayClick}>
-            <div className={`${styles.modal} ${className}`} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modal} ${className}`} onClick={(e) => { e.stopPropagation(); handleOnClick(); }}>
                 <div className={styles.header}>
                     <h2 className={styles.title}>{title}</h2>
                     <button onClick={onClose} className={styles.closeBtn}>&times;</button>

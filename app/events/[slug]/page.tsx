@@ -36,12 +36,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const [loading, setLoading] = useState(false);
-    const [entryData, setEntryData] = useState({ itemName: '', quantity: '1', volume: '330', percentage: '4.8' });
+    const [entryData, setEntryData] = useState({ itemName: '', quantity: '1', volume: '30', percentage: '4.8' });
     const [itemSearch, setItemSearch] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [editedRules, setEditedRules] = useState('');
     const [editedEvent, setEditedEvent] = useState({ name: '', slug: '' });
-    const [newItemData, setNewItemData] = useState({ name: '', volume: '330', percentage: '4.8' });
+    const [newItemData, setNewItemData] = useState({ name: '', volume: '30', percentage: '4.8' });
 
     useEffect(() => {
         if (event) {
@@ -95,7 +95,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             if (!data.status) throw new Error(data.message);
 
             setIsEntryModalOpen(false);
-            setEntryData({ itemName: '', quantity: '1', volume: '330', percentage: '4.8' });
+            setEntryData({ itemName: '', quantity: '1', volume: '30', percentage: '4.8' });
             setItemSearch('');
             mutateLeaderboard();
             mutateHistory();
@@ -217,7 +217,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             const data = await res.json();
             if (!data.status) throw new Error(data.message);
 
-            setNewItemData({ name: '', volume: '330', percentage: '4.8' });
+            setNewItemData({ name: '', volume: '30', percentage: '4.8' });
             mutateItems();
         } catch (err: any) {
             alert(err.message);
@@ -227,7 +227,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     };
 
     const { data: allItems, mutate: mutateItems } = useSWR(isItemsModalOpen ? `/api/events/${slug}/items?q=${searchQuery}` : null, fetcher);
-    const { data: itemSuggestions } = useSWR(isEntryModalOpen && itemSearch.length > 0 ? `/api/events/${slug}/items?q=${itemSearch}` : null, fetcher);
+    const { data: itemSuggestions } = useSWR(isEntryModalOpen ? `/api/events/${slug}/items?q=${itemSearch}` : null, fetcher);
 
     const handleDeleteEntry = async (entryId: string) => {
         if (!confirm('Are you sure you want to delete this entry? This will revert the points.')) return;
@@ -354,7 +354,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             className="glass-panel desktop-only"
                             style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid hsl(var(--primary) / 0.2)', cursor: 'pointer', fontWeight: 600 }}
                         >
-                            📦 Manage All Items
+                            📦 Item Library
                         </button>
                     )}
 
@@ -401,11 +401,11 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 <button onClick={() => window.location.href = '/profile'} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>👤 My Profile</button>
 
                                 {user?.role === 'PARTICIPANT' && (
-                                    <button onClick={() => window.location.href = '/teams/manage'} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>👥 Manage Team</button>
+                                    <button onClick={() => window.location.href = `/teams/manage?eventId=${event?.id}`} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>👥 Manage Team</button>
                                 )}
 
                                 {['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) && (
-                                    <button onClick={() => setIsItemsModalOpen(true)} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>📦 Item Point Library</button>
+                                    <button onClick={() => setIsItemsModalOpen(true)} style={{ width: '100%', textAlign: 'left', padding: '0.6rem 0.75rem', borderRadius: '0.4rem', border: 'none', background: 'transparent', color: 'hsl(var(--foreground))', cursor: 'pointer', fontSize: '0.875rem' }}>📦 Item Library</button>
                                 )}
 
                                 {['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) ? (
@@ -545,9 +545,9 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     )}
                 </main>
 
-                <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: 'fit-content', position: 'sticky', top: '1rem' }}>
                     {/* Points History */}
-                    <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', height: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', maxHeight: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 📊 Points History
@@ -702,6 +702,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 onClose={() => setIsEntryModalOpen(false)}
                 title="Add New Entry"
                 closeOnOutsideClick={false}
+                onClick={() => setShowSuggestions(false)}
             >
                 <form onSubmit={handleAddEntry} className={modalStyles.form} onClick={() => setShowSuggestions(false)}>
                     <div style={{ position: 'relative' }}>
@@ -730,14 +731,14 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 border: '1px solid var(--border)',
                                 borderRadius: '0.5rem',
                                 marginTop: '4px',
-                                maxHeight: '200px',
+                                maxHeight: '250px',
                                 overflowY: 'auto',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+                                boxShadow: '0 15px 35px rgba(0,0,0,0.3)'
                             }}>
                                 {itemSuggestions.map((item: any) => (
                                     <div
                                         key={item.id}
-                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}
+                                        style={{ padding: '1rem 1.25rem', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '1rem' }}
                                         className="suggestion-item"
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -769,7 +770,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 min="1"
                                 value={entryData.volume}
                                 onChange={e => setEntryData({ ...entryData, volume: e.target.value })}
-                                placeholder="e.g. 330"
+                                placeholder="e.g. 30"
                             />
                         </div>
                         <div>
@@ -893,11 +894,17 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             </Modal>
 
             {/* Manage All Items Modal */}
-            <Modal isOpen={isItemsModalOpen} onClose={() => setIsItemsModalOpen(false)} title="Item Point Library">
+            <Modal
+                isOpen={isItemsModalOpen}
+                onClose={() => setIsItemsModalOpen(false)}
+                title="Item Library"
+                closeOnOutsideClick={false}
+                className="library-modal"
+            >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {/* Add New Item Section */}
                     <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid hsl(var(--primary) / 0.1)' }}>
-                        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '1rem', color: 'hsl(var(--primary))' }}>✨ Add New Beverage Item</h4>
+                        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '1rem', color: 'hsl(var(--primary))' }}>✨ Add New Item</h4>
                         <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <input
                                 className={loginStyles.input}
@@ -1137,6 +1144,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     height: 80vh !important;
                     min-height: 400px;
                     max-height: 80vh !important;
+                    margin-top: -6vh !important;
                     display: flex;
                     flex-direction: column;
                 }
@@ -1157,7 +1165,19 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                         border-radius: 10px;
                     }
                 }
-            `}</style>
+                    :global(.library-modal) {
+                        max-height: 80vh !important;
+                        margin-top: -6vh !important;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    :global(.library-modal > div:last-child) {
+                        overflow-y: auto !important;
+                        flex: 1;
+                        padding-right: 0.5rem;
+                    }
+                `}</style>
         </div>
     );
 }

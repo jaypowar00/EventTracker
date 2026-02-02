@@ -28,6 +28,7 @@ export async function GET(
                 eventId: event.id,
                 name: {
                     contains: query,
+                    mode: 'insensitive'
                 }
             },
             orderBy: { name: 'asc' }
