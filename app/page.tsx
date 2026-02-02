@@ -59,7 +59,7 @@ export default function LoginPage() {
           <h1 className={styles.title}>
             BoyzTracker
           </h1>
-          <p className={styles.subtitle}>Admin Access Portal</p>
+          <p className={styles.subtitle}>Event Access Portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
