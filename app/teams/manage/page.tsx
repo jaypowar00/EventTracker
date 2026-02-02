@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { AVATARS } from '@/lib/avatars';
 import Modal from '@/components/Modal';
@@ -13,16 +14,24 @@ const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data =>
     return data.data;
 });
 
-export default function ManageTeamPage() {
+export function ManageTeamContent() {
+    const searchParams = useSearchParams();
+    const urlEventId = searchParams.get('eventId');
+
     const { data: user, mutate: mutateUser } = useSWR('/api/user/me', fetcher);
+
+    // Resolve which event we are managing
+    const activeEventId = urlEventId || (user as any)?.events?.[0]?.id;
+
     // Fetch leaderboard for team switching
-    const { data: leaderboard, mutate: mutateLeaderboard } = useSWR(user?.eventId ? `/api/events/${user.eventId}/leaderboard` : null, fetcher);
+    const { data: leaderboard, mutate: mutateLeaderboard } = useSWR(activeEventId ? `/api/events/${activeEventId}/leaderboard` : null, fetcher);
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [showPicker, setShowPicker] = useState(false);
 
-    const team = user?.memberships?.[0]?.team;
+    // Find the specific team for THIS event
+    const team = (user as any)?.memberships?.find((m: any) => m.team.eventId === activeEventId)?.team;
 
     const [formData, setFormData] = useState({
         name: '',
@@ -76,7 +85,7 @@ export default function ManageTeamPage() {
         try {
             const res = await fetch('/api/teams', {
                 method: 'POST',
-                body: JSON.stringify({ action: 'JOIN', teamId: teamId })
+                body: JSON.stringify({ action: 'JOIN', teamId: teamId, eventId: activeEventId })
             });
             const data = await res.json();
             if (!data.status) throw new Error(data.message);
@@ -101,7 +110,7 @@ export default function ManageTeamPage() {
                     action: 'CREATE',
                     teamName: createData.name,
                     iconIndex: createData.iconIndex,
-                    eventId: user.eventId
+                    eventId: activeEventId
                 })
             });
             const data = await res.json();
@@ -400,5 +409,13 @@ export default function ManageTeamPage() {
                 }
             `}</style>
         </div>
+    );
+}
+
+export default function ManageTeamPage() {
+    return (
+        <Suspense fallback={<div className={styles.container}>Loading...</div>}>
+            <ManageTeamContent />
+        </Suspense>
     );
 }
