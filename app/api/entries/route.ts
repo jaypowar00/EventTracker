@@ -38,10 +38,14 @@ export async function POST(request: Request) {
         // 3. User & Event Context
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
-            include: { memberships: { include: { team: true } } }
-        });
+            include: {
+                memberships: { include: { team: true } },
+                events: { select: { id: true } }
+            }
+        } as any);
 
-        if (!user || user.eventId !== eventId) {
+        const isMember = (user as any)?.events.some((e: any) => e.id === eventId);
+        if (!user || !isMember) {
             return NextResponse.json({ status: false, message: 'User not associated with this event' }, { status: 200 });
         }
 

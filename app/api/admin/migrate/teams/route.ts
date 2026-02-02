@@ -22,8 +22,11 @@ export async function POST() {
         // 2. Find all participants
         const participants = await prisma.user.findMany({
             where: { role: 'PARTICIPANT' },
-            include: { memberships: true }
-        });
+            include: {
+                memberships: true,
+                events: { select: { id: true } }
+            }
+        } as any);
 
         let migratedCount = 0;
 
@@ -32,26 +35,28 @@ export async function POST() {
             // Already has a team? Skip
             if (user.memberships.length > 0) continue;
 
-            // Missing event connection? Skip (can't create team without event)
-            if (!user.eventId) continue;
+            const targetEvents = (user as any).events;
+            if (!targetEvents || targetEvents.length === 0) continue;
 
-            await prisma.$transaction(async (tx: any) => {
-                const teamPublicId = await generateUniquePublicId(tx, 'team');
-                const team = await tx.team.create({
-                    data: {
-                        name: user.username,
-                        publicId: teamPublicId,
-                        eventId: user.eventId,
-                    }
-                });
+            for (const eventRef of targetEvents) {
+                await prisma.$transaction(async (tx: any) => {
+                    const teamPublicId = await generateUniquePublicId(tx, 'team');
+                    const team = await tx.team.create({
+                        data: {
+                            name: user.username,
+                            publicId: teamPublicId,
+                            eventId: eventRef.id,
+                        }
+                    });
 
-                await tx.teamMember.create({
-                    data: {
-                        userId: user.id,
-                        teamId: team.id
-                    }
+                    await tx.teamMember.create({
+                        data: {
+                            userId: user.id,
+                            teamId: team.id
+                        }
+                    });
                 });
-            });
+            }
 
             migratedCount++;
         }

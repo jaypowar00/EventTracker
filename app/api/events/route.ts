@@ -25,7 +25,7 @@ export async function GET() {
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: {
-                    select: { teams: true },
+                    select: { teams: true, users: true },
                 },
                 createdByUser: {
                     select: { username: true }
@@ -33,36 +33,15 @@ export async function GET() {
             },
         });
 
-        // 3. Manually count participants for each event (users in event's teams)
-        const eventsWithParticipants = await Promise.all(
-            events.map(async (event: any) => {
-                // Get all team members for this event's teams
-                const teamMembers = await prisma.teamMember.findMany({
-                    where: {
-                        team: {
-                            eventId: event.id
-                        }
-                    },
-                    select: {
-                        userId: true
-                    }
-                });
+        const data = events.map((event: any) => ({
+            ...event,
+            _count: {
+                ...event._count,
+                participants: event._count.users
+            }
+        }));
 
-                // Count unique users
-                const uniqueUserIds = new Set(teamMembers.map((tm: { userId: string }) => tm.userId));
-                const participantCount = uniqueUserIds.size;
-
-                return {
-                    ...event,
-                    _count: {
-                        ...event._count,
-                        participants: participantCount
-                    }
-                };
-            })
-        );
-
-        return NextResponse.json({ status: true, message: 'Events fetched successfully', data: eventsWithParticipants });
+        return NextResponse.json({ status: true, message: 'Events fetched successfully', data });
     } catch (error) {
         console.error('Error fetching events:', error);
         return NextResponse.json({ status: false, message: 'Internal Server Error' }, { status: 500 });
@@ -86,7 +65,7 @@ export async function POST(request: Request) {
 
         // 2. Input Validation
         const body = await request.json();
-        const { name, slug } = body;
+        const { name, slug, startDate, endDate, status } = body;
 
         if (!name || !slug) {
             return NextResponse.json({ status: false, message: 'Name and Slug are required' }, { status: 200 });
@@ -106,6 +85,9 @@ export async function POST(request: Request) {
             data: {
                 name,
                 slug,
+                status: status || 'UPCOMING',
+                startDate: startDate ? new Date(startDate) : null,
+                endDate: endDate ? new Date(endDate) : null,
                 createdByUserId: payload.userId,
             },
         });

@@ -22,24 +22,32 @@ export async function POST(request: Request) {
 
         // 2. Input Validation
         const body = await request.json();
-        let { username, role, password: customPassword, eventId } = body;
+        let { username, role, password: customPassword, eventId, eventIds } = body;
+
+        // Normalize to array
+        if (eventId && !eventIds) eventIds = [eventId];
+        if (!eventIds) eventIds = [];
 
         // Scoping for EVENT_ADMIN
         if (payload.role === 'EVENT_ADMIN') {
-            const currentUser = await prisma.user.findUnique({ where: { id: payload.userId } });
-            if (!currentUser || !currentUser.eventId) {
+            const currentUser = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                include: { events: { select: { id: true } } }
+            });
+
+            if (!currentUser || (currentUser as any).events.length === 0) {
                 return NextResponse.json({ status: false, message: 'Admin event context missing' }, { status: 200 });
             }
-            // Force role to PARTICIPANT and eventId to admin's event
+            // Force role to PARTICIPANT and eventIds to admin's first event (for now)
             role = 'PARTICIPANT';
-            eventId = currentUser.eventId;
+            eventIds = [(currentUser as any).events[0].id];
         }
 
         if (!username || !role) {
             return NextResponse.json({ status: false, message: 'Username and Role are required' }, { status: 200 });
         }
 
-        if (!['EVENT_ADMIN', 'PARTICIPANT'].includes(role) && payload.role !== 'SUPER_ADMIN') {
+        if (!['EVENT_ADMIN', 'PARTICIPANT', 'SUPER_ADMIN'].includes(role) && payload.role !== 'SUPER_ADMIN') {
             return NextResponse.json({ status: false, message: 'Invalid role selection' }, { status: 200 });
         }
 
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
         const publicId = await generateUniquePublicId(prisma, 'user');
         const passwordHash = await hashPassword(password);
 
-        // 5. Create User and Associate Team (if Participant)
+        // 5. Create User and Associate Teams
         const user = await prisma.$transaction(async (tx: any) => {
             const avatarIndex = Math.floor(Math.random() * 20); // Random initial avatar
             const newUser = await tx.user.create({
@@ -67,36 +75,40 @@ export async function POST(request: Request) {
                     publicId,
                     role,
                     avatarIndex,
-                    eventId: eventId || null,
+                    events: {
+                        connect: eventIds.map((id: string) => ({ id }))
+                    }
                 },
                 select: {
                     id: true,
                     username: true,
                     publicId: true,
                     role: true,
-                    eventId: true,
                     createdAt: true,
+                    events: { select: { id: true, name: true } }
                 },
             });
 
-            // COMPULSORY: Automatically create team for PARTICIPANT
-            if (role === 'PARTICIPANT' && eventId) {
-                const teamPublicId = await generateUniquePublicId(tx, 'team');
-                const team = await tx.team.create({
-                    data: {
-                        name: username,
-                        publicId: teamPublicId,
-                        eventId: eventId,
-                        iconIndex: avatarIndex, // Same as user's initial avatar
-                    }
-                });
+            // Automatically create team for PARTICIPANT in each event
+            if (role === 'PARTICIPANT' && eventIds.length > 0) {
+                for (const targetEventId of eventIds) {
+                    const teamPublicId = await generateUniquePublicId(tx, 'team');
+                    const team = await tx.team.create({
+                        data: {
+                            name: username,
+                            publicId: teamPublicId,
+                            eventId: targetEventId,
+                            iconIndex: avatarIndex,
+                        }
+                    });
 
-                await tx.teamMember.create({
-                    data: {
-                        userId: newUser.id,
-                        teamId: team.id
-                    }
-                });
+                    await tx.teamMember.create({
+                        data: {
+                            userId: newUser.id,
+                            teamId: team.id
+                        }
+                    });
+                }
             }
 
             return newUser;
@@ -108,16 +120,15 @@ export async function POST(request: Request) {
             details: {
                 createdUserId: user.id,
                 createdUsername: user.username,
-                targetUsername: user.username, // Added for redundancy/compatibility
                 role: user.role,
-                eventId: user.eventId
+                eventIds
             },
             actorId: payload.userId,
             actorName: payload.username,
             actorRole: payload.role
         });
 
-        // 7. Return user details with plain password (only time it's shown)
+        // 7. Return user details with plain password
         return NextResponse.json({
             status: true,
             message: 'User created successfully',
@@ -125,7 +136,7 @@ export async function POST(request: Request) {
                 user,
                 credentials: {
                     username: user.username,
-                    password: password, // Plain password for admin to share
+                    password: password,
                     publicId: user.publicId,
                 },
             },
@@ -166,7 +177,7 @@ export async function GET() {
                 publicId: true,
                 role: true,
                 createdAt: true,
-                event: {
+                events: {
                     select: {
                         name: true,
                         slug: true

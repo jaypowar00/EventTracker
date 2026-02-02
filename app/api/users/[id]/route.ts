@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken, hashPassword } from '@/lib/auth';
-import { generatePassword } from '@/lib/generators';
+import { generatePassword, generateUniquePublicId } from '@/lib/generators';
 import { cookies } from 'next/headers';
 import { logAction } from '@/lib/logger';
 
@@ -26,25 +26,37 @@ export async function PATCH(
         }
 
         // Fetch target user for scoping check
-        const targetUser = await prisma.user.findUnique({ where: { id } });
+        const targetUser = await prisma.user.findUnique({
+            where: { id },
+            include: { events: { select: { id: true } } }
+        });
         if (!targetUser) {
             return NextResponse.json({ status: false, message: 'User not found' }, { status: 200 });
         }
 
         // Scoping for EVENT_ADMIN
         if (payload.role === 'EVENT_ADMIN') {
-            const currentUser = await prisma.user.findUnique({ where: { id: payload.userId } });
-            if (!currentUser || currentUser.eventId !== targetUser.eventId || targetUser.role !== 'PARTICIPANT') {
+            const currentUser = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                include: { events: { select: { id: true } } }
+            });
+
+            const adminEventIds = (currentUser as any).events.map((e: any) => e.id);
+            const targetUserEventIds = (targetUser as any).events.map((e: any) => e.id);
+
+            // Allow if target is participant and shares at least one event with admin
+            const hasCommonEvent = targetUserEventIds.some((id: string) => adminEventIds.includes(id));
+            if (!currentUser || !hasCommonEvent || targetUser.role !== 'PARTICIPANT') {
                 return NextResponse.json({ status: false, message: 'Forbidden: Scoped access required' }, { status: 200 });
             }
         }
 
         // 2. Input
         const body = await request.json();
-        const { role, eventId, resetPassword, newPassword } = body;
+        let { role, eventId, eventIds, resetPassword, newPassword } = body;
 
-        // Security: EVENT_ADMIN cannot change role or eventId
-        if (payload.role === 'EVENT_ADMIN' && (role || eventId !== undefined)) {
+        // Security: EVENT_ADMIN cannot change role or eventIds
+        if (payload.role === 'EVENT_ADMIN' && (role || eventId !== undefined || eventIds !== undefined)) {
             return NextResponse.json({ status: false, message: 'Forbidden: Event Admins cannot modify roles or events' }, { status: 200 });
         }
 
@@ -52,7 +64,12 @@ export async function PATCH(
         let newCredentials = null;
 
         if (role) updateData.role = role;
-        if (eventId !== undefined) updateData.eventId = eventId; // Allow setting to null
+
+        // Handle Event updates
+        if (eventId !== undefined && !eventIds) eventIds = eventId ? [eventId] : [];
+        if (eventIds !== undefined) {
+            updateData.events = { set: eventIds.map((id: string) => ({ id })) };
+        }
 
         if (resetPassword || newPassword) {
             const password = newPassword || generatePassword(12);
@@ -60,32 +77,66 @@ export async function PATCH(
             newCredentials = { password };
         }
 
-        // 3. Update User
-        const user = await prisma.user.update({
-            where: { id },
-            data: updateData,
-            select: {
-                id: true,
-                username: true,
-                role: true,
-                eventId: true
+        // 3. Update User & Handle Teams
+        const user = await prisma.$transaction(async (tx: any) => {
+            const updatedUser = await tx.user.update({
+                where: { id },
+                data: updateData,
+                select: {
+                    id: true,
+                    username: true,
+                    role: true,
+                    avatarIndex: true
+                }
+            });
+
+            // If Participant, ensure they have exactly one team in each associated event
+            if ((role || targetUser.role) === 'PARTICIPANT' && eventIds !== undefined) {
+                // Get current team associations
+                const existingTeams = await tx.teamMember.findMany({
+                    where: { userId: id },
+                    include: { team: true }
+                });
+
+                const existingEventIds = existingTeams.map((m: any) => m.team.eventId);
+
+                // Add teams for new events
+                for (const targetEventId of eventIds) {
+                    if (!existingEventIds.includes(targetEventId)) {
+                        const teamPublicId = await generateUniquePublicId(tx, 'team');
+                        const team = await tx.team.create({
+                            data: {
+                                name: updatedUser.username,
+                                publicId: teamPublicId,
+                                eventId: targetEventId,
+                                iconIndex: (updatedUser as any).avatarIndex,
+                            }
+                        });
+
+                        await tx.teamMember.create({
+                            data: {
+                                userId: id,
+                                teamId: team.id
+                            }
+                        });
+                    }
+                }
+
+                // Optional: Remove teams for events no longer associated?
+                // For now, keep them for history, or we could delete if empty.
             }
+
+            return updatedUser;
         });
 
         // 4. Log Action
-        let eventName = null;
-        if (updateData.eventId) {
-            const event = await prisma.event.findUnique({ where: { id: updateData.eventId } });
-            eventName = event?.name;
-        }
-
         await logAction({
             action: resetPassword || newPassword ? 'USER_PASSWORD_RESET' : 'USER_UPDATE',
             details: {
                 targetUserId: id,
                 targetUsername: user.username,
                 updatedFields: Object.keys(updateData).filter(k => k !== 'passwordHash'),
-                eventName: eventName,
+                eventIds: eventIds,
                 isManualReset: !!newPassword
             },
             actorId: payload.userId,
@@ -136,7 +187,7 @@ export async function DELETE(
         // 2. Get User for Logging and Scoping
         const user = await prisma.user.findUnique({
             where: { id },
-            select: { username: true, role: true, eventId: true }
+            include: { events: { select: { id: true } } }
         });
 
         if (!user) {
@@ -145,8 +196,16 @@ export async function DELETE(
 
         // Scoping for EVENT_ADMIN
         if (payload.role === 'EVENT_ADMIN') {
-            const currentUser = await prisma.user.findUnique({ where: { id: payload.userId } });
-            if (!currentUser || currentUser.eventId !== user.eventId || user.role !== 'PARTICIPANT') {
+            const currentUser = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                include: { events: { select: { id: true } } }
+            });
+
+            const adminEventIds = (currentUser as any)?.events.map((e: any) => e.id) || [];
+            const targetUserEventIds = (user as any).events.map((e: any) => e.id);
+            const hasCommonEvent = targetUserEventIds.some((id: string) => adminEventIds.includes(id));
+
+            if (!currentUser || !hasCommonEvent || user.role !== 'PARTICIPANT') {
                 return NextResponse.json({ status: false, message: 'Forbidden: Scoped access required' }, { status: 200 });
             }
         }

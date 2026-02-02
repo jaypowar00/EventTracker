@@ -77,12 +77,14 @@ export async function PATCH(
 
         // 4. Update Logic
         const body = await request.json();
-        const { rules, name, status, newSlug } = body;
+        const { rules, name, status, newSlug, startDate, endDate } = body;
 
         const updateData: any = {};
         if (rules !== undefined) updateData.rules = rules;
         if (name) updateData.name = name;
         if (status) updateData.status = status;
+        if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
+        if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
         if (newSlug && payload.role === 'SUPER_ADMIN') updateData.slug = newSlug;
 
         const updatedEvent = await prisma.event.update({
