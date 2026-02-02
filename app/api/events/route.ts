@@ -89,7 +89,7 @@ export async function POST(request: Request) {
                 startDate: startDate ? new Date(startDate) : null,
                 endDate: endDate ? new Date(endDate) : null,
                 createdByUserId: payload.userId,
-            },
+            } as any,
         });
 
         // 5. Log Action

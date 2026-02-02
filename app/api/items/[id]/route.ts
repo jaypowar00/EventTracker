@@ -35,8 +35,15 @@ export async function PATCH(
         }
 
         // 3. Scoping for EVENT_ADMIN
-        if (payload.role === 'EVENT_ADMIN' && payload.eventId !== item.eventId) {
-            return NextResponse.json({ status: false, message: 'Forbidden: Scoped access required' }, { status: 200 });
+        if (payload.role === 'EVENT_ADMIN') {
+            const adminUser = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                include: { events: { select: { id: true } } }
+            });
+            const adminEventIds = adminUser?.events.map((e: any) => e.id) || [];
+            if (!adminEventIds.includes(item.eventId)) {
+                return NextResponse.json({ status: false, message: 'Forbidden: Scoped access required' }, { status: 200 });
+            }
         }
 
         // 4. Update Logic

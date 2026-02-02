@@ -22,9 +22,12 @@ export async function POST(request: Request) {
             if (!teamId) return NextResponse.json({ status: false, message: 'Team ID required' }, { status: 200 });
 
             return await prisma.$transaction(async (tx: any) => {
-                // Find current membership
+                // Find current membership for THIS event
                 const currentMember = await tx.teamMember.findFirst({
-                    where: { userId: payload.userId },
+                    where: {
+                        userId: payload.userId,
+                        team: { eventId: eventId || (teamId ? (await tx.team.findUnique({ where: { id: teamId } }))?.eventId : undefined) }
+                    },
                     include: { team: true }
                 });
 
@@ -66,9 +69,14 @@ export async function POST(request: Request) {
             return await prisma.$transaction(async (tx: any) => {
                 const user = await tx.user.findUnique({ where: { id: payload.userId } });
 
-                // Does user already have a team?
-                const existing = await tx.teamMember.findFirst({ where: { userId: payload.userId } });
-                if (existing) return NextResponse.json({ status: true, message: 'User already has a team' });
+                // Does user already have a team for this event?
+                const existing = await tx.teamMember.findFirst({
+                    where: {
+                        userId: payload.userId,
+                        team: { eventId: eventId }
+                    }
+                });
+                if (existing) return NextResponse.json({ status: true, message: 'User already has a team for this event' });
 
                 const teamPublicId = await generateUniquePublicId(tx, 'team');
                 const team = await tx.team.create({
@@ -98,9 +106,12 @@ export async function POST(request: Request) {
             }
 
             return await prisma.$transaction(async (tx: any) => {
-                // Find current membership
+                // Find current membership for THIS event
                 const currentMember = await tx.teamMember.findFirst({
-                    where: { userId: payload.userId },
+                    where: {
+                        userId: payload.userId,
+                        team: { eventId: eventId }
+                    },
                     include: { team: true }
                 });
 

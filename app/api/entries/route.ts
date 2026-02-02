@@ -49,9 +49,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ status: false, message: 'User not associated with this event' }, { status: 200 });
         }
 
-        const team = user.memberships[0]?.team;
+        const team = (user as any).memberships.find((m: any) => (m as any).team.eventId === eventId)?.team;
         if (!team) {
-            return NextResponse.json({ status: false, message: 'User has no team association' }, { status: 200 });
+            return NextResponse.json({ status: false, message: 'User has no team association for this event' }, { status: 200 });
         }
 
         const event = await prisma.event.findUnique({
@@ -71,24 +71,24 @@ export async function POST(request: Request) {
         });
 
         if (!item) {
-            item = await prisma.item.create({
+            item = await (prisma.item.create({
                 data: {
                     name: itemName,
                     defaultPoints: 1,
                     defaultVolume: vol,
                     defaultPercentage: perc,
                     eventId: eventId
-                }
-            });
-        } else if (item.defaultVolume === 0 && item.defaultPercentage === 0 && (vol > 0 || perc > 0)) {
+                } as any
+            }) as any);
+        } else if ((item as any).defaultVolume === 0 && (item as any).defaultPercentage === 0 && (vol > 0 || perc > 0)) {
             // Update "legacy" or empty presets automatically
-            item = await prisma.item.update({
-                where: { id: item.id },
+            item = await (prisma.item.update({
+                where: { id: (item as any).id },
                 data: {
                     defaultVolume: vol,
                     defaultPercentage: perc
                 }
-            });
+            }) as any);
         }
 
         // 5. Create Entry
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
                 pointsAwarded: calculatedPoints,
                 userId: user.id,
                 teamId: team.id,
-                itemId: item.id
+                itemId: (item as any).id
             }
         });
 
@@ -111,8 +111,8 @@ export async function POST(request: Request) {
         await logAction({
             action: 'ENTRY_CREATE',
             details: {
-                entryId: entry.id,
-                itemName: item.name,
+                entryId: (entry as any).id,
+                itemName: (item as any).name,
                 count: count,
                 volume: vol,
                 percentage: perc,

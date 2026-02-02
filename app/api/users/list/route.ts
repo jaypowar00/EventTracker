@@ -22,7 +22,9 @@ export async function GET() {
             include: {
                 events: {
                     select: {
-                        name: true
+                        id: true,
+                        name: true,
+                        slug: true
                     }
                 }
             } as any,

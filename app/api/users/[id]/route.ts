@@ -68,7 +68,10 @@ export async function PATCH(
         // Handle Event updates
         if (eventId !== undefined && !eventIds) eventIds = eventId ? [eventId] : [];
         if (eventIds !== undefined) {
-            updateData.events = { set: eventIds.map((id: string) => ({ id })) };
+            // Deduplicate IDs
+            const uniqueEventIds = Array.from(new Set(eventIds)) as string[];
+            updateData.events = { set: uniqueEventIds.map((id: string) => ({ id })) };
+            eventIds = uniqueEventIds; // Update the variable for later use in team creation
         }
 
         if (resetPassword || newPassword) {

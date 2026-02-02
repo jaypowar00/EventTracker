@@ -20,13 +20,13 @@ export async function POST() {
         }
 
         // 2. Find all participants
-        const participants = await prisma.user.findMany({
+        const participants = (await prisma.user.findMany({
             where: { role: 'PARTICIPANT' },
             include: {
                 memberships: true,
                 events: { select: { id: true } }
             }
-        } as any);
+        } as any)) as any[];
 
         let migratedCount = 0;
 
