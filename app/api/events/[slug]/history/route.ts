@@ -40,7 +40,7 @@ export async function GET(
         });
 
         // 3. Formulate Dynamic Messages
-        const history = entries.map(entry => {
+        const history = entries.map((entry: any) => {
             return {
                 id: entry.id,
                 timestamp: entry.timestamp,

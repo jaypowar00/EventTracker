@@ -71,7 +71,7 @@ export async function POST(
                 defaultVolume: parseInt(defaultVolume) || 0,
                 defaultPercentage: parseFloat(defaultPercentage) || 0,
                 eventId: event.id
-            }
+            } as any
         });
 
         return NextResponse.json({ status: true, data: newItem });
