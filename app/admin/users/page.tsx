@@ -33,32 +33,100 @@ export default function UserManagementPage() {
         password: ''
     });
 
+    const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+    const [isBulkCreate, setIsBulkCreate] = useState(false);
+    const [bulkCreateText, setBulkCreateText] = useState('');
+    const [bulkResult, setBulkResult] = useState<any>(null);
+
     const filteredUsers = (users || [])?.filter((u: any) => {
         const search = searchTerm.toLowerCase();
         return u.username.toLowerCase().includes(search) ||
             String(u.publicId).toLowerCase().includes(search);
     });
 
-    const handleCreateUser = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedUsers(filteredUsers.map((u: any) => u.id));
+        } else {
+            setSelectedUsers([]);
+        }
+    };
+
+    const handleSelectUser = (id: string) => {
+        if (selectedUsers.includes(id)) {
+            setSelectedUsers(selectedUsers.filter(uid => uid !== id));
+        } else {
+            setSelectedUsers([...selectedUsers, id]);
+        }
+    };
+
+    const handleBulkAction = async (action: 'delete' | 'toggle_welcome', value?: boolean) => {
+        if (!confirm(`Are you sure you want to ${action} ${selectedUsers.length} users?`)) return;
         setLoading(true);
         try {
-            const res = await fetch('/api/users', {
+            const res = await fetch('/api/users/bulk', {
                 method: 'POST',
                 body: JSON.stringify({
-                    username: newUser.username,
-                    role: newUser.role,
-                    eventIds: newUser.eventIds,
-                    password: newUser.password || undefined
+                    action,
+                    userIds: selectedUsers,
+                    value
                 })
             });
             const data = await res.json();
             if (!data.status) throw new Error(data.message);
-
-            setIsAddModalOpen(false);
-            setNewUser({ username: '', role: 'PARTICIPANT', eventIds: [], password: '' });
             mutateUsers();
-            setResetCreds(data.data.credentials);
+            setSelectedUsers([]);
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            if (isBulkCreate) {
+                // Parse bulk text
+                const lines = bulkCreateText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                const usersToCreate = lines.map(l => ({ username: l }));
+
+                const res = await fetch('/api/users/bulk', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'create',
+                        users: usersToCreate,
+                        eventIds: newUser.eventIds, // Send all selected event IDs
+                        password: newUser.password || undefined // Send the default password if provided
+                    })
+                });
+                const data = await res.json();
+                if (!data.status) throw new Error(data.message);
+
+                setBulkResult(data.data);
+                setIsAddModalOpen(false);
+                setBulkCreateText('');
+                mutateUsers();
+
+            } else {
+                const res = await fetch('/api/users', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: newUser.username,
+                        role: newUser.role,
+                        eventIds: newUser.eventIds,
+                        password: newUser.password || undefined
+                    })
+                });
+                const data = await res.json();
+                if (!data.status) throw new Error(data.message);
+
+                setIsAddModalOpen(false);
+                setNewUser({ username: '', role: 'PARTICIPANT', eventIds: [], password: '' });
+                mutateUsers();
+                setResetCreds(data.data.credentials);
+            }
         } catch (err: any) {
             alert(err.message);
         } finally {
@@ -187,29 +255,65 @@ export default function UserManagementPage() {
                 </div>
             </header>
 
+            {/* Bulk Actions Toolbar */}
+            {selectedUsers.length > 0 && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '2rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'hsl(var(--card))',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    zIndex: 100
+                }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedUsers.length} selected</span>
+                    <div style={{ height: '20px', width: '1px', background: 'var(--border)' }}></div>
+                    <button onClick={() => handleBulkAction('toggle_welcome', true)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.25rem' }} title="Mark as Seen Welcome">👁️</button>
+                    <button onClick={() => handleBulkAction('toggle_welcome', false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.25rem' }} title="Mark as Unseen Welcome">🚫</button>
+                    <div style={{ height: '20px', width: '1px', background: 'var(--border)' }}></div>
+                    <button onClick={() => handleBulkAction('delete')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0.25rem' }} title="Delete Selected">🗑️</button>
+                </div>
+            )}
+
             <div className="users-wrapper">
                 {/* Desktop View Table */}
                 <div className="glass-panel desktop-only" style={{ borderRadius: '1.25rem', border: '1px solid var(--border)', overflow: 'hidden' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead style={{ background: 'hsl(var(--card))', borderBottom: '1px solid var(--border)' }}>
                             <tr>
+                                <th style={{ padding: '1.25rem 1.5rem', width: '40px' }}>
+                                    <input type="checkbox" onChange={handleSelectAll} checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} />
+                                </th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Details</th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</th>
+                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seen Welcome</th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Associated Event</th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredUsers.length === 0 ? (
-                                <tr><td colSpan={4} style={{ padding: '5rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>No users found matching your search.</td></tr>
+                                <tr><td colSpan={6} style={{ padding: '5rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>No users found matching your search.</td></tr>
                             ) : filteredUsers.map((user: any) => (
-                                <tr key={user.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s ease' }} className="user-row">
+                                <tr key={user.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s ease', background: selectedUsers.includes(user.id) ? 'hsl(var(--primary) / 0.05)' : 'transparent' }} className="user-row">
+                                    <td style={{ padding: '1.25rem 1.5rem' }}>
+                                        <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => handleSelectUser(user.id)} />
+                                    </td>
                                     <td style={{ padding: '1.25rem 1.5rem' }}>
                                         <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{user.username}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.1rem' }}>ID: {user.publicId}</div>
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem' }}>
                                         <span style={getRoleBadgeStyle(user.role)}>{user.role}</span>
+                                    </td>
+                                    <td style={{ padding: '1.25rem 1.5rem' }}>
+                                        {user.hasSeenWelcome ? '✅ Yes' : '❌ No'}
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.9rem' }}>
                                         {user.events && user.events.length > 0 ? (
@@ -240,22 +344,33 @@ export default function UserManagementPage() {
                     {filteredUsers.length === 0 ? (
                         <p style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--muted-foreground))' }}>No users found.</p>
                     ) : filteredUsers.map((user: any) => (
-                        <div key={user.id} className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{user.username}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>ID: {user.publicId}</div>
+                        <div key={user.id} className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)', background: selectedUsers.includes(user.id) ? 'hsl(var(--primary) / 0.05)' : 'hsl(var(--card))' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                                <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => handleSelectUser(user.id)} />
+                                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{user.username}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>ID: {user.publicId}</div>
+                                    </div>
+                                    <span style={getRoleBadgeStyle(user.role)}>{user.role}</span>
                                 </div>
-                                <span style={getRoleBadgeStyle(user.role)}>{user.role}</span>
+                            </div>
+
+                            <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+                                <span>📅 {new Date(user.createdAt).toLocaleDateString()}</span>
+                                <span>{user.hasSeenWelcome ? '✅ Seen Intro' : '🚫 Not Seen'}</span>
                             </div>
 
                             <div style={{ marginBottom: '1.25rem' }}>
-                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Event association</div>
-                                <div style={{ fontSize: '0.9rem' }}>
-                                    {user.events && user.events.length > 0
-                                        ? user.events.map((e: any) => e.name).join(', ')
-                                        : 'Global Access'}
-                                </div>
+                                {user.events && user.events.length > 0 ? (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                        {user.events.map((e: any, idx: number) => (
+                                            <span key={`${e.id}-${idx}`} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500 }}>{e.name}</span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span style={{ fontSize: '0.8rem', opacity: 0.6, fontStyle: 'italic' }}>Global Access</span>
+                                )}
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
@@ -265,7 +380,7 @@ export default function UserManagementPage() {
                                 <button onClick={() => { setResettingUser(user); setIsResetModalOpen(true); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
                                     <span>🔑</span> Reset
                                 </button>
-                                <button onClick={() => handleDelete(user.id, user.username)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
+                                <button onClick={() => handleDelete(user.id, user.username)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--destructive) / 0.1)', border: 'none', color: 'hsl(var(--destructive))', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
                                     <span>🗑️</span> Delete
                                 </button>
                             </div>
@@ -276,50 +391,158 @@ export default function UserManagementPage() {
 
             {/* Modals remain the same but use the updated shared components */}
 
-            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add User">
+            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={isBulkCreate ? "Bulk Create Users" : "Add New User"}>
+                <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <button onClick={() => setIsBulkCreate(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: !isBulkCreate ? 700 : 400, color: !isBulkCreate ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>Single User</button>
+                    <button onClick={() => setIsBulkCreate(true)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: isBulkCreate ? 700 : 400, color: isBulkCreate ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>Bulk Mode</button>
+                </div>
+
                 <form onSubmit={handleCreateUser} className={modalStyles.form}>
-                    <div>
-                        <label className={loginStyles.label}>Username</label>
-                        <input className={loginStyles.input} required value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} placeholder="Enter username..." />
-                    </div>
-                    <div>
-                        <label className={loginStyles.label}>Role</label>
-                        <select className={loginStyles.input} value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
-                            <option value="PARTICIPANT">Participant</option>
-                            <option value="EVENT_ADMIN">Event Admin</option>
-                            <option value="SUPER_ADMIN">Super Admin</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className={loginStyles.label}>Events (Enroll in one or more)</label>
-                        <div className="glass-panel" style={{ maxHeight: '150px', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {events?.map((e: any) => (
-                                <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={newUser.eventIds.includes(e.id)}
-                                        onChange={(event) => {
-                                            const newIds = event.target.checked
-                                                ? [...newUser.eventIds, e.id]
-                                                : newUser.eventIds.filter(id => id !== e.id);
-                                            setNewUser({ ...newUser, eventIds: newIds });
-                                        }}
-                                    />
-                                    {e.name}
-                                </label>
-                            ))}
-                            {(!events || events.length === 0) && <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>No events found.</p>}
+
+                    {!isBulkCreate ? (
+                        <>
+                            <div>
+                                <label className={loginStyles.label}>Username</label>
+                                <input
+                                    className={loginStyles.input}
+                                    value={newUser.username}
+                                    onChange={e => setNewUser({ ...newUser, username: e.target.value })}
+                                    placeholder="Enter username"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className={loginStyles.label}>Role</label>
+                                <select
+                                    className={loginStyles.input}
+                                    value={newUser.role}
+                                    onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                                >
+                                    <option value="PARTICIPANT">Participant</option>
+                                    <option value="EVENT_ADMIN">Event Admin</option>
+                                    <option value="SUPER_ADMIN">Super Admin</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={loginStyles.label}>Primary Event (Optional)</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                    {events?.map((e: any) => (
+                                        <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={newUser.eventIds.includes(e.id)}
+                                                onChange={(event) => {
+                                                    const currentIds = newUser.eventIds;
+                                                    const newIds = event.target.checked
+                                                        ? [...currentIds, e.id]
+                                                        : currentIds.filter(id => id !== e.id);
+                                                    setNewUser({ ...newUser, eventIds: newIds });
+                                                }}
+                                            />
+                                            {e.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className={loginStyles.label}>Custom Password (Optional)</label>
+                                <input
+                                    className={loginStyles.input}
+                                    value={newUser.password}
+                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                    placeholder="Leave empty for auto-generation"
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <label className={loginStyles.label}>Usernames (One per line)</label>
+                            <textarea
+                                className={loginStyles.input}
+                                style={{ minHeight: '200px', fontFamily: 'monospace' }}
+                                value={bulkCreateText}
+                                onChange={e => setBulkCreateText(e.target.value)}
+                                placeholder={"JohnDoe\nJaneDoe\n..."}
+                                required
+                            />
+                            <div style={{ marginTop: '1rem' }}>
+                                <label className={loginStyles.label}>Assign to Events (Optional)</label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                    {events?.map((e: any) => (
+                                        <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={newUser.eventIds.includes(e.id)}
+                                                onChange={(event) => {
+                                                    const currentIds = newUser.eventIds;
+                                                    const newIds = event.target.checked
+                                                        ? [...currentIds, e.id]
+                                                        : currentIds.filter(id => id !== e.id);
+                                                    setNewUser({ ...newUser, eventIds: newIds });
+                                                }}
+                                            />
+                                            {e.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '1rem' }}>
+                                <label className={loginStyles.label}>Default Password (Optional)</label>
+                                <input
+                                    className={loginStyles.input}
+                                    value={newUser.password}
+                                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+                                    placeholder="Leave empty for auto-generation"
+                                    type="text"
+                                />
+                                <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+                                    Visible text to avoid typos. Used for all created users.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <label className={loginStyles.label}>Initial Password (Optional)</label>
-                        <input className={loginStyles.input} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} placeholder="Leave empty for random" />
-                    </div>
+                    )}
+
                     <div className={modalStyles.footer}>
                         <button type="button" onClick={() => setIsAddModalOpen(false)} className={modalStyles.cancelBtn}>Cancel</button>
-                        <button type="submit" disabled={loading} className={modalStyles.submitBtn}>{loading ? 'Creating...' : 'Create'}</button>
+                        <button type="submit" disabled={loading} className={modalStyles.submitBtn}>{loading ? 'Creating...' : (isBulkCreate ? 'Create All' : 'Create User')}</button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal isOpen={!!bulkResult} onClose={() => setBulkResult(null)} title="Bulk Creation Result">
+                {bulkResult && (
+                    <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <h4 style={{ color: 'hsl(var(--success))' }}>Created ({bulkResult.createdUsers.length})</h4>
+                            <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'hsl(var(--card))', padding: '0.5rem' }}>
+                                {bulkResult.createdUsers.map((u: any, i: number) => (
+                                    <div key={i} style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', padding: '0.2rem 0' }}>
+                                        <span>{u.username}</span>
+                                        <code style={{ background: 'hsl(var(--muted))', padding: '0 0.2rem' }}>{u.password}</code>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        {bulkResult.failedUsers.length > 0 && (
+                            <div>
+                                <h4 style={{ color: 'hsl(var(--destructive))' }}>Failed ({bulkResult.failedUsers.length})</h4>
+                                <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'hsl(var(--card))', padding: '0.5rem' }}>
+                                    {bulkResult.failedUsers.map((u: any, i: number) => (
+                                        <div key={i} style={{ fontSize: '0.85rem', color: 'hsl(var(--destructive))' }}>
+                                            {u.username}: {u.reason}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <div className={modalStyles.footer}>
+                            <button onClick={() => setBulkResult(null)} className={modalStyles.submitBtn}>Done</button>
+                        </div>
+                    </div>
+                )}
             </Modal>
 
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit User">

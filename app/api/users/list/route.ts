@@ -19,7 +19,13 @@ export async function GET() {
         }
 
         const users = await prisma.user.findMany({
-            include: {
+            select: {
+                id: true,
+                username: true,
+                publicId: true,
+                role: true,
+                hasSeenWelcome: true,
+                createdAt: true,
                 events: {
                     select: {
                         id: true,
@@ -27,7 +33,7 @@ export async function GET() {
                         slug: true
                     }
                 }
-            } as any,
+            },
             orderBy: {
                 createdAt: 'desc'
             }

@@ -26,15 +26,22 @@ export async function GET(
         if (!event) return NextResponse.json({ status: false, message: 'Event not found' }, { status: 200 });
 
         if (payload.role !== 'SUPER_ADMIN') {
-            const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-            if (!user || user.role !== 'EVENT_ADMIN' || user.eventId !== event.id) {
+            const user = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                include: { events: { select: { id: true } } }
+            });
+
+            const isAssociated = user?.events.some(e => e.id === event.id);
+            if (!user || user.role !== 'EVENT_ADMIN' || !isAssociated) {
                 return NextResponse.json({ status: false, message: 'Forbidden' }, { status: 200 });
             }
         }
 
         const users = await prisma.user.findMany({
             where: {
-                eventId: event.id,
+                events: {
+                    some: { id: event.id }
+                },
                 role: 'PARTICIPANT'
             },
             select: {
