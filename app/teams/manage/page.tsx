@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { AVATARS } from '@/lib/avatars';
+import Modal from '@/components/Modal';
 import styles from '@/app/admin/dashboard.module.css';
 import loginStyles from '@/app/login.module.css';
+import modalStyles from '@/components/Modal.module.css';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
     if (!data.status) throw new Error(data.message);
@@ -26,6 +28,10 @@ export default function ManageTeamPage() {
         name: '',
         iconIndex: 0
     });
+
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [createData, setCreateData] = useState({ name: '', iconIndex: 0 });
+    const [showCreatePicker, setShowCreatePicker] = useState(false);
 
     useEffect(() => {
         if (team) {
@@ -80,6 +86,34 @@ export default function ManageTeamPage() {
             mutateLeaderboard();
         } catch (err: any) {
             setMessage({ type: 'error', text: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateTeam = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch('/api/teams', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'CREATE',
+                    teamName: createData.name,
+                    iconIndex: createData.iconIndex,
+                    eventId: user.eventId
+                })
+            });
+            const data = await res.json();
+            if (!data.status) throw new Error(data.message);
+
+            setIsCreateModalOpen(false);
+            setCreateData({ name: '', iconIndex: 0 });
+            setMessage({ type: 'success', text: 'New team created and joined!' });
+            mutateUser();
+            mutateLeaderboard();
+        } catch (err: any) {
+            alert(err.message);
         } finally {
             setLoading(false);
         }
@@ -148,7 +182,7 @@ export default function ManageTeamPage() {
                                     <label className={loginStyles.label} style={{ margin: 0 }}>Choose Icon</label>
                                     <button onClick={() => setShowPicker(false)} style={{ background: 'transparent', border: 'none', color: 'hsl(var(--muted-foreground))', cursor: 'pointer' }}>Close</button>
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto', padding: '0.25rem' }}>
                                     {AVATARS.map((svg, i) => (
                                         <button
                                             key={i}
@@ -176,7 +210,17 @@ export default function ManageTeamPage() {
 
                     {/* Team Switcher */}
                     <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1.25rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Switch Team</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Switch Team</h3>
+                            {leaderboard?.find((t: any) => t.id === team.id)?.memberCount > 1 && (
+                                <button
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    style={{ fontSize: '0.75rem', background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', border: '1px solid hsl(var(--primary) / 0.2)', padding: '0.3rem 0.6rem', borderRadius: '0.4rem', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                    ✨ Create New
+                                </button>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                             {leaderboard?.filter((t: any) => t.id !== team.id).map((otherTeam: any) => (
                                 <button
@@ -289,6 +333,59 @@ export default function ManageTeamPage() {
                     )}
                 </main>
             </div>
+
+            <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Team">
+                <form onSubmit={handleCreateTeam} className={modalStyles.form}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ width: '100px', height: '100px', borderRadius: '1.5rem', overflow: 'hidden', border: '3px solid hsl(var(--primary))', padding: '0.6rem', background: 'hsl(var(--primary) / 0.05)' }}>
+                                <div dangerouslySetInnerHTML={{ __html: AVATARS[createData.iconIndex] }} style={{ width: '100%', height: '100%' }} />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowCreatePicker(!showCreatePicker)}
+                                style={{ position: 'absolute', bottom: '-5px', right: '-5px', background: 'hsl(var(--primary))', color: '#fff', border: '2px solid hsl(var(--background))', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}
+                            >
+                                🎨
+                            </button>
+                        </div>
+
+                        {showCreatePicker && (
+                            <div className="glass-panel" style={{ padding: '1rem', borderRadius: '1rem', width: '100%' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.4rem', maxHeight: '180px', overflowY: 'auto', padding: '0.25rem' }}>
+                                    {AVATARS.map((svg, i) => (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => { setCreateData({ ...createData, iconIndex: i }); setShowCreatePicker(false); }}
+                                            style={{ background: createData.iconIndex === i ? 'hsl(var(--primary) / 0.2)' : 'hsl(var(--foreground) / 0.03)', border: `2px solid ${createData.iconIndex === i ? 'hsl(var(--primary))' : 'transparent'}`, padding: '0.25rem', borderRadius: '0.4rem', cursor: 'pointer', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            dangerouslySetInnerHTML={{ __html: svg }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className={loginStyles.label}>Team Name</label>
+                        <input
+                            className={loginStyles.input}
+                            value={createData.name}
+                            onChange={e => setCreateData({ ...createData, name: e.target.value })}
+                            placeholder="Enter unique team name..."
+                            required
+                        />
+                    </div>
+
+                    <div className={modalStyles.footer}>
+                        <button type="button" onClick={() => setIsCreateModalOpen(false)} className={modalStyles.cancelBtn}>Cancel</button>
+                        <button type="submit" disabled={loading} className={modalStyles.submitBtn}>
+                            {loading ? 'Creating...' : 'Create & Join'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             <style jsx>{`
                 @keyframes fadeInDown {

@@ -91,6 +91,61 @@ export async function POST(request: Request) {
             });
         }
 
+        // --- 3. CREATE NEW CUSTOM TEAM ---
+        if (action === 'CREATE') {
+            if (!teamName || !eventId) {
+                return NextResponse.json({ status: false, message: 'Team Name and Event ID are required' }, { status: 200 });
+            }
+
+            return await prisma.$transaction(async (tx: any) => {
+                // Find current membership
+                const currentMember = await tx.teamMember.findFirst({
+                    where: { userId: payload.userId },
+                    include: { team: true }
+                });
+
+                const oldTeamId = currentMember?.teamId;
+
+                // Create new team
+                const teamPublicId = await generateUniquePublicId(tx, 'team');
+                const newTeam = await tx.team.create({
+                    data: {
+                        name: teamName,
+                        publicId: teamPublicId,
+                        eventId: eventId,
+                        iconIndex: iconIndex || 0
+                    }
+                });
+
+                // Move user to new team
+                if (currentMember) {
+                    await tx.teamMember.update({
+                        where: { id: currentMember.id },
+                        data: { teamId: newTeam.id }
+                    });
+                } else {
+                    await tx.teamMember.create({
+                        data: {
+                            userId: payload.userId,
+                            teamId: newTeam.id
+                        }
+                    });
+                }
+
+                // CLEANUP: If old team has 0 members, delete it
+                if (oldTeamId) {
+                    const remainingMembers = await tx.teamMember.count({
+                        where: { teamId: oldTeamId }
+                    });
+                    if (remainingMembers === 0) {
+                        await tx.team.delete({ where: { id: oldTeamId } });
+                    }
+                }
+
+                return NextResponse.json({ status: true, message: 'Team created successfully', data: newTeam });
+            });
+        }
+
         return NextResponse.json({ status: false, message: 'Invalid action' }, { status: 200 });
     } catch (error: any) {
         console.error('Teams API error:', error);

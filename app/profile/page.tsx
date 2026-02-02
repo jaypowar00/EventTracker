@@ -114,7 +114,7 @@ export default function ProfilePage() {
                                 <label className={loginStyles.label} style={{ margin: 0 }}>Select New Avatar</label>
                                 <button onClick={() => setShowPicker(false)} style={{ background: 'transparent', border: 'none', color: 'hsl(var(--muted-foreground))', cursor: 'pointer' }}>Close</button>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto', padding: '0.5rem' }}>
                                 {AVATARS.map((svg, i) => (
                                     <button
                                         key={i}
