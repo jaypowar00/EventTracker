@@ -30,15 +30,15 @@ export default function LoginPage() {
       }
 
       // Redirect based on role
-      const { role, eventSlug } = data.data;
+      const { role, eventSlug, hasMultipleEvents } = data.data;
 
       if (role === 'SUPER_ADMIN') {
         router.push('/admin');
+      } else if (hasMultipleEvents) {
+        router.push('/dashboard');
       } else if (eventSlug) {
         router.push(`/events/${eventSlug}`);
       } else {
-        // If not super admin and no event, they shouldn't have access to admin portal
-        // But for now, let's just keep them here or show a message
         setError('Your account is not associated with any active event.');
       }
     } catch (err: any) {

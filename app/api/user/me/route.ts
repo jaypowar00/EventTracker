@@ -24,16 +24,25 @@ export async function GET() {
                 username: true,
                 role: true,
                 publicId: true,
-                eventId: true,
                 createdAt: true,
                 hasSeenWelcome: true,
                 avatarIndex: true,
+                events: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        status: true,
+                        startDate: true,
+                        endDate: true
+                    } as any
+                },
                 memberships: {
                     include: {
                         team: true
-                    }
+                    } as any
                 }
-            }
+            } as any
         });
 
         if (!user) {

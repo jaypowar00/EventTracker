@@ -16,12 +16,12 @@ export async function POST(request: Request) {
         const user = await prisma.user.findUnique({
             where: { username },
             include: {
-                event: {
+                events: {
                     select: {
                         slug: true
                     }
                 }
-            }
+            } as any
         });
 
         if (!user) {
@@ -52,6 +52,8 @@ export async function POST(request: Request) {
             path: '/',
         });
 
+        const eventSlug = user.role === 'SUPER_ADMIN' ? null : ((user as any).events.length === 1 ? (user as any).events[0].slug : null);
+
         return NextResponse.json({
             status: true,
             message: 'Login successful',
@@ -60,7 +62,8 @@ export async function POST(request: Request) {
                 username: user.username,
                 role: user.role,
                 publicId: user.publicId,
-                eventSlug: user.event?.slug || null,
+                eventSlug,
+                hasMultipleEvents: (user as any).events.length > 1
             },
         });
 
