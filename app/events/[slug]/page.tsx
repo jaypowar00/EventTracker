@@ -1052,12 +1052,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 className={loginStyles.button}
                                 style={{
                                     width: '100%',
-                                    background: event?.status === 'ACTIVE' ? 'hsl(var(--warning) / 0.1)' : 'hsl(var(--primary) / 0.1)',
-                                    color: event?.status === 'ACTIVE' ? 'hsl(var(--warning))' : 'hsl(var(--primary))',
-                                    border: `1px solid ${event?.status === 'ACTIVE' ? 'hsl(var(--warning) / 0.2)' : 'hsl(var(--primary) / 0.2)'}`
+                                    background: event?.status === 'ONGOING' ? 'hsl(var(--warning) / 0.1)' : 'hsl(var(--primary) / 0.1)',
+                                    color: event?.status === 'ONGOING' ? 'hsl(var(--warning))' : 'hsl(var(--primary))',
+                                    border: `1px solid ${event?.status === 'ONGOING' ? 'hsl(var(--warning) / 0.2)' : 'hsl(var(--primary) / 0.2)'}`
                                 }}
                             >
-                                {event?.status === 'ACTIVE' ? '⛔ Pause Event' : '▶️ Resume Event'}
+                                {event?.status === 'ONGOING' ? '⛔ Finish Event' : '▶️ Resume Event'}
                             </button>
                         </div>
                     </div>
