@@ -41,7 +41,6 @@ export async function GET(
 
         // 3. Formulate Dynamic Messages
         const history = entries.map(entry => {
-            const currentPoints = entry.count * entry.item.defaultPoints;
             return {
                 id: entry.id,
                 timestamp: entry.timestamp,
@@ -50,10 +49,11 @@ export async function GET(
                 teamName: entry.team.name,
                 itemId: entry.itemId,
                 itemName: entry.item.name,
-                itemPoints: entry.item.defaultPoints,
+                volume: entry.volume,
+                percentage: entry.percentage,
                 count: entry.count,
-                points: currentPoints,
-                message: `${entry.user.username} earned ${currentPoints} Point${currentPoints !== 1 ? 's' : ''} for ${entry.team.name}`
+                points: entry.pointsAwarded,
+                message: `${entry.user.username} earned ${entry.pointsAwarded} pts for ${entry.team.name}`
             };
         });
 
