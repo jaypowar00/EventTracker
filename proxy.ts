@@ -5,7 +5,7 @@ import { verifyToken } from './lib/auth';
 // Paths that don't require authentication
 const PUBLIC_PATHS = ['/login', '/api/login', '/api/register'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // 1. Allow public paths
@@ -22,10 +22,6 @@ export async function middleware(request: NextRequest) {
     const token = request.cookies.get('session_token')?.value;
 
     if (!token) {
-        // Redirect to login if no token
-        // If trying to access admin, go to admin login (root for now or specific)
-        // For event specific, we might want to redirect to event login?
-        // For now, redirect to root which handles routing logic
         return NextResponse.redirect(new URL('/', request.url));
     }
 
@@ -33,17 +29,15 @@ export async function middleware(request: NextRequest) {
     const payload = await verifyToken(token) as any;
 
     if (!payload) {
-        // Invalid token
         return NextResponse.redirect(new URL('/', request.url));
     }
 
     // 5. Role-based Access Control (RBAC)
-    // Only SUPER_ADMIN can access the main admin dashboard (/admin)
     if (pathname === '/admin' && payload.role !== 'SUPER_ADMIN') {
         return NextResponse.redirect(new URL('/', request.url));
     }
 
-    // 5. Add user info to headers for easier access in server components (optional but helpful)
+    // 5. Add user info to headers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', payload.userId as string);
     requestHeaders.set('x-user-role', payload.role as string);
