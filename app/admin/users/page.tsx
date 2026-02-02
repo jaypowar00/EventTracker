@@ -214,8 +214,8 @@ export default function UserManagementPage() {
                                     <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.9rem' }}>
                                         {user.events && user.events.length > 0 ? (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                                {user.events.map((e: any) => (
-                                                    <span key={e.slug} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>{e.name}</span>
+                                                {user.events.map((e: any, idx: number) => (
+                                                    <span key={`${e.id}-${idx}`} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>{e.name}</span>
                                                 ))}
                                             </div>
                                         ) : (
@@ -224,7 +224,7 @@ export default function UserManagementPage() {
                                     </td>
                                     <td style={{ padding: '1.25rem 1.5rem', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                                            <button onClick={() => { setEditingUser(user); setIsEditModalOpen(true); }} style={{ background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.625rem', borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease' }} className="action-btn" title="Edit User">✏️</button>
+                                            <button onClick={() => { setEditingUser({ ...user, eventIds: user.events?.map((e: any) => e.id) || [] }); setIsEditModalOpen(true); }} style={{ background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.625rem', borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease' }} className="action-btn" title="Edit User">✏️</button>
                                             <button onClick={() => { setResettingUser(user); setIsResetModalOpen(true); }} style={{ background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.625rem', borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease' }} className="action-btn" title="Reset Password">🔑</button>
                                             <button onClick={() => handleDelete(user.id, user.username)} style={{ background: 'hsl(var(--destructive) / 0.1)', border: 'none', color: 'hsl(var(--destructive))', padding: '0.625rem', borderRadius: '0.5rem', cursor: 'pointer', transition: 'all 0.2s ease' }} className="action-btn delete" title="Delete User">🗑️</button>
                                         </div>
@@ -259,7 +259,7 @@ export default function UserManagementPage() {
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                                <button onClick={() => { setEditingUser(user); setIsEditModalOpen(true); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
+                                <button onClick={() => { setEditingUser({ ...user, eventIds: user.events?.map((e: any) => e.id) || [] }); setIsEditModalOpen(true); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
                                     <span>✏️</span> Edit
                                 </button>
                                 <button onClick={() => { setResettingUser(user); setIsResetModalOpen(true); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', background: 'hsl(var(--foreground) / 0.05)', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}>
@@ -344,9 +344,9 @@ export default function UserManagementPage() {
                                     <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
                                         <input
                                             type="checkbox"
-                                            checked={(editingUser.eventIds || editingUser.events?.map((ev: any) => ev.id) || []).includes(e.id)}
+                                            checked={editingUser.eventIds?.includes(e.id)}
                                             onChange={(event) => {
-                                                const currentIds = editingUser.eventIds || editingUser.events?.map((ev: any) => ev.id) || [];
+                                                const currentIds = editingUser.eventIds || [];
                                                 const newIds = event.target.checked
                                                     ? [...currentIds, e.id]
                                                     : currentIds.filter((id: string) => id !== e.id);
