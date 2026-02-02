@@ -27,9 +27,8 @@ model User {
   entries       Entry[]
   createdRequests TeamRequest[]
   
-  // Tie to a specific event (for EVENT_ADMIN and PARTICIPANT)
-  eventId       String?
-  event         Event?    @relation("EventUsers", fields: [eventId], references: [id])
+  // Tie to multiple events
+  events        Event[]   @relation("EventUsers")
   
   // Track events created by this user (typically SUPER_ADMIN)
   createdEvents Event[]   @relation("EventCreator")
@@ -39,7 +38,9 @@ model Event {
   id          String   @id @default(uuid())
   name        String
   slug        String   @unique
-  status      String   @default("ONGOING") // ONGOING, FINISHED
+  status      String   @default("ONGOING") // ONGOING, FINISHED, UPCOMING
+  startDate   DateTime?
+  endDate     DateTime?
   createdAt   DateTime @default(now())
   
   createdByUserId String
