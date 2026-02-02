@@ -41,6 +41,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [editedRules, setEditedRules] = useState('');
     const [editedEvent, setEditedEvent] = useState({ name: '', slug: '' });
+    const [newItemData, setNewItemData] = useState({ name: '', volume: '330', percentage: '4.8' });
 
     useEffect(() => {
         if (event) {
@@ -201,6 +202,30 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
         }
     };
 
+    const handleAddItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/events/${slug}/items`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    name: newItemData.name,
+                    defaultVolume: newItemData.volume,
+                    defaultPercentage: newItemData.percentage
+                })
+            });
+            const data = await res.json();
+            if (!data.status) throw new Error(data.message);
+
+            setNewItemData({ name: '', volume: '330', percentage: '4.8' });
+            mutateItems();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const { data: allItems, mutate: mutateItems } = useSWR(isItemsModalOpen ? `/api/events/${slug}/items?q=${searchQuery}` : null, fetcher);
     const { data: itemSuggestions } = useSWR(isEntryModalOpen && itemSearch.length > 0 ? `/api/events/${slug}/items?q=${itemSearch}` : null, fetcher);
 
@@ -303,21 +328,21 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {(user?.role === 'PARTICIPANT' || ['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role)) && (
+                    {user?.role === 'PARTICIPANT' && (
                         <button
                             onClick={() => setIsEntryModalOpen(true)}
                             className="glass-panel desktop-only"
                             style={{
-                                background: event?.status === 'FINISHED' && user?.role === 'PARTICIPANT' ? 'var(--muted)' : 'hsl(var(--primary) / 0.1)',
-                                color: event?.status === 'FINISHED' && user?.role === 'PARTICIPANT' ? 'var(--muted-foreground)' : 'hsl(var(--primary))',
+                                background: event?.status === 'FINISHED' ? 'var(--muted)' : 'hsl(var(--primary) / 0.1)',
+                                color: event?.status === 'FINISHED' ? 'var(--muted-foreground)' : 'hsl(var(--primary))',
                                 padding: '0.5rem 1.25rem',
                                 borderRadius: '0.5rem',
                                 border: '1px solid hsl(var(--primary) / 0.2)',
-                                cursor: event?.status === 'FINISHED' && user?.role === 'PARTICIPANT' ? 'not-allowed' : 'pointer',
+                                cursor: event?.status === 'FINISHED' ? 'not-allowed' : 'pointer',
                                 fontWeight: 600,
-                                opacity: event?.status === 'FINISHED' && user?.role === 'PARTICIPANT' ? 0.5 : 1
+                                opacity: event?.status === 'FINISHED' ? 0.5 : 1
                             }}
-                            disabled={event?.status === 'FINISHED' && user?.role === 'PARTICIPANT'}
+                            disabled={event?.status === 'FINISHED'}
                         >
                             ➕ Add Entry
                         </button>
@@ -544,22 +569,24 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 >
                                     Global
                                 </button>
-                                <button
-                                    onClick={() => setActiveHistoryTab('your')}
-                                    style={{
-                                        padding: '0.3rem 0.8rem',
-                                        borderRadius: '0.4rem',
-                                        border: 'none',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        background: activeHistoryTab === 'your' ? 'hsl(var(--background))' : 'transparent',
-                                        color: activeHistoryTab === 'your' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                                        boxShadow: activeHistoryTab === 'your' ? 'var(--shadow-sm)' : 'none'
-                                    }}
-                                >
-                                    Your
-                                </button>
+                                {user?.role === 'PARTICIPANT' && (
+                                    <button
+                                        onClick={() => setActiveHistoryTab('your')}
+                                        style={{
+                                            padding: '0.3rem 0.8rem',
+                                            borderRadius: '0.4rem',
+                                            border: 'none',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            background: activeHistoryTab === 'your' ? 'hsl(var(--background))' : 'transparent',
+                                            color: activeHistoryTab === 'your' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                                            boxShadow: activeHistoryTab === 'your' ? 'var(--shadow-sm)' : 'none'
+                                        }}
+                                    >
+                                        Your
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
@@ -867,42 +894,82 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
 
             {/* Manage All Items Modal */}
             <Modal isOpen={isItemsModalOpen} onClose={() => setIsItemsModalOpen(false)} title="Item Point Library">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ position: 'relative' }}>
-                        <input
-                            className={loginStyles.input}
-                            style={{ paddingLeft: '2.5rem' }}
-                            placeholder="Search items..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                        />
-                        <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {/* Add New Item Section */}
+                    <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid hsl(var(--primary) / 0.1)' }}>
+                        <h4 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '1rem', color: 'hsl(var(--primary))' }}>✨ Add New Beverage Item</h4>
+                        <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <input
+                                className={loginStyles.input}
+                                placeholder="Item Name (e.g. Red Feni)"
+                                value={newItemData.name}
+                                onChange={e => setNewItemData({ ...newItemData, name: e.target.value })}
+                                required
+                            />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <input
+                                    type="number"
+                                    className={loginStyles.input}
+                                    placeholder="Vol (ml)"
+                                    value={newItemData.volume}
+                                    onChange={e => setNewItemData({ ...newItemData, volume: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className={loginStyles.input}
+                                    placeholder="ABV (%)"
+                                    value={newItemData.percentage}
+                                    onChange={e => setNewItemData({ ...newItemData, percentage: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <button type="submit" disabled={loading} className={loginStyles.button} style={{ padding: '0.6rem' }}>
+                                {loading ? 'Adding...' : 'Add to Library'}
+                            </button>
+                        </form>
                     </div>
 
-                    <div style={{ maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {!allItems ? (
-                            <p style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--muted-foreground))' }}>Loading items...</p>
-                        ) : allItems.length === 0 ? (
-                            <p style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--muted-foreground))' }}>No items found.</p>
-                        ) : allItems.map((item: any) => (
-                            <div key={item.id} className="glass-panel" style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0.75rem' }}>
-                                <div style={{ fontWeight: 600 }}>{item.name}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', textAlign: 'right' }}>
-                                        {item.defaultVolume}ml • {item.defaultPercentage}%
+                    <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: 0 }} />
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                className={loginStyles.input}
+                                style={{ paddingLeft: '2.5rem' }}
+                                placeholder="Search library..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
+                            <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                        </div>
+
+                        <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {!allItems ? (
+                                <p style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--muted-foreground))' }}>Loading library...</p>
+                            ) : allItems.length === 0 ? (
+                                <p style={{ textAlign: 'center', padding: '2rem', color: 'hsl(var(--muted-foreground))' }}>No items found.</p>
+                            ) : allItems.map((item: any) => (
+                                <div key={item.id} className="glass-panel" style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0.75rem' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>{item.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                                            Preset: {item.defaultVolume}ml • {item.defaultPercentage}%
+                                        </div>
                                     </div>
                                     <button
                                         onClick={() => setEditingItem(item)}
-                                        style={{ padding: '0.25rem 0.5rem', background: 'hsl(var(--foreground) / 0.05)', border: '1px solid var(--border)', borderRadius: '0.4rem', cursor: 'pointer', fontSize: '0.75rem' }}
+                                        style={{ padding: '0.4rem 0.75rem', background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', border: '1px solid hsl(var(--primary) / 0.2)', borderRadius: '0.4rem', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
                                     >
                                         Edit
                                     </button>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                     <div className={modalStyles.footer}>
-                        <button onClick={() => setIsItemsModalOpen(false)} className={modalStyles.submitBtn} style={{ width: '100%' }}>Done</button>
+                        <button onClick={() => setIsItemsModalOpen(false)} className={modalStyles.submitBtn} style={{ width: '100%' }}>Close Library</button>
                     </div>
                 </div>
             </Modal>
@@ -913,7 +980,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     <form onSubmit={handleUpdateItemPoints} className={modalStyles.form}>
                         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                             <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{editingItem.name}</h3>
-                            <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>Current Baseline Points</p>
+                            <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))' }}>Update Library Preset</p>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                             <div>
@@ -940,17 +1007,67 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 />
                             </div>
                         </div>
-                        <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '-0.5rem' }}>
-                            * This will affect all FUTURE entries of this item for this event.
-                        </p>
+                        <div style={{ background: 'hsl(var(--warning) / 0.1)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid hsl(var(--warning) / 0.2)', fontSize: '0.75rem', color: 'hsl(var(--warning-foreground))', marginTop: '0.5rem' }}>
+                            ⚠️ This change only affects **future** entries. Past entries on the leaderboard will remain unchanged.
+                        </div>
                         <div className={modalStyles.footer}>
                             <button type="button" onClick={() => setEditingItem(null)} className={modalStyles.cancelBtn}>Cancel</button>
                             <button type="submit" disabled={loading} className={modalStyles.submitBtn}>
-                                {loading ? 'Saving...' : 'Save Changes'}
+                                {loading ? 'Saving...' : 'Update Preset'}
                             </button>
                         </div>
                     </form>
                 )}
+            </Modal>
+
+            {/* Event Settings Modal */}
+            <Modal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} title="Event Settings">
+                <form onSubmit={handleUpdateEvent} className={modalStyles.form}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div>
+                            <label className={loginStyles.label}>Event Name</label>
+                            <input
+                                className={loginStyles.input}
+                                value={editedEvent.name}
+                                onChange={e => setEditedEvent({ ...editedEvent, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className={loginStyles.label}>Event URL Slug</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem' }}>/events/</span>
+                                <input
+                                    className={loginStyles.input}
+                                    value={editedEvent.slug}
+                                    onChange={e => setEditedEvent({ ...editedEvent, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div style={{ marginTop: '0.5rem' }}>
+                            <button
+                                type="button"
+                                onClick={handleToggleStatus}
+                                className={loginStyles.button}
+                                style={{
+                                    width: '100%',
+                                    background: event?.status === 'ACTIVE' ? 'hsl(var(--warning) / 0.1)' : 'hsl(var(--primary) / 0.1)',
+                                    color: event?.status === 'ACTIVE' ? 'hsl(var(--warning))' : 'hsl(var(--primary))',
+                                    border: `1px solid ${event?.status === 'ACTIVE' ? 'hsl(var(--warning) / 0.2)' : 'hsl(var(--primary) / 0.2)'}`
+                                }}
+                            >
+                                {event?.status === 'ACTIVE' ? '⛔ Pause Event' : '▶️ Resume Event'}
+                            </button>
+                        </div>
+                    </div>
+                    <div className={modalStyles.footer} style={{ marginTop: '1.5rem' }}>
+                        <button type="button" onClick={() => setIsSettingsModalOpen(false)} className={modalStyles.cancelBtn}>Cancel</button>
+                        <button type="submit" disabled={loading} className={modalStyles.submitBtn}>
+                            {loading ? 'Saving...' : 'Save Settings'}
+                        </button>
+                    </div>
+                </form>
             </Modal>
 
             {/* Floating Action Button for Mobile */}
