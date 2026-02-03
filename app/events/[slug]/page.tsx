@@ -789,6 +789,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 isOpen={isEntryModalOpen}
                 onClose={() => setIsEntryModalOpen(false)}
                 title="Add New Entry"
+                className="add-entry-modal"
                 closeOnOutsideClick={false}
                 onClick={() => setShowSuggestions(false)}
             >
@@ -1122,7 +1123,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             </Modal>
 
             {/* Edit Entry Modal */}
-            <Modal isOpen={!!editingEntry} onClose={() => setEditingEntry(null)} title="Edit Entry">
+            <Modal isOpen={!!editingEntry} onClose={() => setEditingEntry(null)} title="Edit Entry" className="edit-entry-modal">
                 {editingEntry && (
                     <form onSubmit={handleUpdateEntry} className={modalStyles.form}>
                         <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
@@ -1311,11 +1312,20 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                         grid-template-columns: 1fr 350px !important;
                     }
                 }
+                
+                :global(.add-entry-modal) {
+                    margin-top: 22px;
+                }
+
+                :global(.edit-entry-modal) {
+                    margin-top: 22px;
+                }
 
                 :global(.team-details-modal) {
                     height: 70vh !important;
                     min-height: 400px;
                     max-height: 70vh !important;
+                    margin: 22px 0 0 0;
                     display: flex;
                     flex-direction: column;
                 }

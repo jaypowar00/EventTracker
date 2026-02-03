@@ -18,9 +18,10 @@
 }
 
 .externalFooter {
-    margin-top: 1rem;
+    margin-top: .25rem;
     width: 90%;
     max-width: 500px;
+    animation: scaleUp 1s ease-out;
 }
 
 .modal {
@@ -110,8 +111,7 @@
 }
 
 .cancelBtn:active {
-    transform: translateY(2px);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    transform: scale(0.95);
 }
 
 .submitBtn {
@@ -123,7 +123,6 @@
     transition: transform 0.1s ease, box-shadow 0.1s ease;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 4px 0 hsl(var(--primary-hover));
 }
 
 .submitBtn:hover {
@@ -131,8 +130,7 @@
 }
 
 .submitBtn:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 hsl(var(--primary-hover));
+    transform: scale(0.95);
 }
 
 @keyframes fadeIn {

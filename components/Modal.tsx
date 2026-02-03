@@ -63,7 +63,7 @@ export default function Modal({
 
     return (
         <div className={styles.overlay} onClick={handleOverlayClick}>
-            <div className={`${styles.modal} ${className}`} onClick={(e) => { e.stopPropagation(); handleOnClick(); }}>
+            <div className={`${styles.modal} ${className}`} style={footer ? { borderRadius: '1rem 1rem 0.25rem 0.25rem' } : {}} onClick={(e) => { e.stopPropagation(); handleOnClick(); }}>
                 <div className={styles.header}>
                     <h2 className={styles.title}>{title}</h2>
                     <button onClick={onClose} className={styles.closeBtn}>&times;</button>
