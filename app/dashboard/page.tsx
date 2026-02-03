@@ -30,27 +30,43 @@ async function getInitialUserData() {
                 role: true,
                 publicId: true,
                 createdAt: true,
-                hasSeenWelcome: true,
                 avatarIndex: true,
-                events: {
+                participations: {
                     select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                        status: true,
-                        startDate: true,
-                        endDate: true
-                    } as any
+                        hasSeenWelcome: true,
+                        event: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true,
+                                status: true,
+                                startDate: true,
+                                endDate: true
+                            }
+                        }
+                    }
                 },
                 memberships: {
                     include: {
                         team: true
-                    } as any
+                    }
                 }
-            } as any
-        });
+            }
+        }) as any;
 
-        return user;
+        if (!user) return null;
+
+        // Transform for frontend compatibility (flatten participations -> events)
+        const formattedUser = {
+            ...user,
+            participations: undefined,
+            events: user.participations.map((p: any) => ({
+                ...p.event,
+                hasSeenWelcome: p.hasSeenWelcome
+            }))
+        };
+
+        return formattedUser;
     } catch (error) {
         console.error('SSR: Error fetching user data:', error);
         return null;

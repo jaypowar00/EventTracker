@@ -289,14 +289,14 @@ export default function UserManagementPage() {
                                 </th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Details</th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</th>
-                                <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seen Welcome</th>
+
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Associated Event</th>
                                 <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredUsers.length === 0 ? (
-                                <tr><td colSpan={6} style={{ padding: '5rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>No users found matching your search.</td></tr>
+                                <tr><td colSpan={5} style={{ padding: '5rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>No users found matching your search.</td></tr>
                             ) : filteredUsers.map((user: any) => (
                                 <tr key={user.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s ease', background: selectedUsers.includes(user.id) ? 'hsl(var(--primary) / 0.05)' : 'transparent' }} className="user-row">
                                     <td style={{ padding: '1.25rem 1.5rem' }}>
@@ -309,9 +309,7 @@ export default function UserManagementPage() {
                                     <td style={{ padding: '1.25rem 1.5rem' }}>
                                         <span style={getRoleBadgeStyle(user.role)}>{user.role}</span>
                                     </td>
-                                    <td style={{ padding: '1.25rem 1.5rem' }}>
-                                        {user.hasSeenWelcome ? '✅ Yes' : '❌ No'}
-                                    </td>
+
                                     <td style={{ padding: '1.25rem 1.5rem', fontSize: '0.9rem' }}>
                                         {user.events && user.events.length > 0 ? (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
@@ -353,10 +351,7 @@ export default function UserManagementPage() {
                                 </div>
                             </div>
 
-                            <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))', marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
-                                <span>📅 {new Date(user.createdAt).toLocaleDateString()}</span>
-                                <span>{user.hasSeenWelcome ? '✅ Seen Intro' : '🚫 Not Seen'}</span>
-                            </div>
+                            <span>📅 {new Date(user.createdAt).toLocaleDateString()}</span>
 
                             <div style={{ marginBottom: '1.25rem' }}>
                                 {user.events && user.events.length > 0 ? (
