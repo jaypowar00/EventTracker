@@ -77,15 +77,17 @@ export async function POST(request: Request) {
                 targetEventIds = [eventId];
             }
 
-            if (targetEventIds.length === 0) {
+            if (targetEventIds.length === 0 && payload.role !== 'SUPER_ADMIN') {
                 return NextResponse.json({ status: false, message: 'No event context for welcome toggle' }, { status: 200 });
             }
 
+            const whereClause: any = { userId: { in: userIds } };
+            if (targetEventIds.length > 0) {
+                whereClause.eventId = { in: targetEventIds };
+            }
+
             await prisma.eventParticipant.updateMany({
-                where: {
-                    userId: { in: userIds },
-                    eventId: { in: targetEventIds }
-                },
+                where: whereClause,
                 data: { hasSeenWelcome: value }
             });
 

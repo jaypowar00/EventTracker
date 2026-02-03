@@ -21,7 +21,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { username, password, avatarIndex, hasSeenWelcome } = body;
+        const { username, password, avatarIndex, hasSeenWelcome, eventId } = body;
 
         const updateData: any = {};
 
@@ -46,6 +46,20 @@ export async function PATCH(request: Request) {
 
         // 4. Identity & Onboarding
         if (avatarIndex !== undefined) updateData.avatarIndex = avatarIndex;
+
+        // Handle Event-specific Welcome Status
+        if (hasSeenWelcome !== undefined && eventId) {
+            await prisma.eventParticipant.update({
+                where: {
+                    userId_eventId: {
+                        userId: payload.userId,
+                        eventId: eventId
+                    }
+                },
+                data: { hasSeenWelcome }
+            });
+            // We don't add this to updateData as it's a separate model
+        }
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ status: false, message: 'No changes provided' }, { status: 200 });

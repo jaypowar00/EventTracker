@@ -27,6 +27,7 @@ export async function GET() {
                 createdAt: true,
                 participations: {
                     select: {
+                        hasSeenWelcome: true,
                         event: {
                             select: {
                                 id: true,
@@ -46,7 +47,7 @@ export async function GET() {
             status: true,
             data: users.map(u => ({
                 ...u,
-                events: u.participations.map((p: any) => p.event),
+                events: u.participations.map((p: any) => ({ ...p.event, hasSeenWelcome: p.hasSeenWelcome })),
                 participations: undefined
             }))
         });
