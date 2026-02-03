@@ -4,12 +4,23 @@
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
     padding: 24px 1rem;
     overflow-y: auto;
     z-index: 1000;
     animation: fadeIn 0.2s ease-out;
+}
+
+.noScroll {
+    overflow: hidden !important;
+}
+
+.externalFooter {
+    margin-top: 1rem;
+    width: 90%;
+    max-width: 500px;
 }
 
 .modal {
@@ -55,6 +66,20 @@
     color: white;
 }
 
+@media (max-width: 768px) {
+    .modal {
+        padding: 1.5rem 0.75rem;
+    }
+
+    .title {
+        margin-left: 1.5rem;
+    }
+
+    .closeBtn {
+        margin-right: 1rem;
+    }
+}
+
 .form {
     display: flex;
     flex-direction: column;
@@ -74,6 +99,9 @@
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .cancelBtn:hover {
@@ -81,16 +109,30 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+.cancelBtn:active {
+    transform: translateY(2px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .submitBtn {
     background: hsl(var(--primary));
     color: white;
     padding: 0.5rem 1.5rem;
-    border-radius: 0.5rem;
+    border-radius: 0.5rem 0.5rem 3rem 3rem;
     font-weight: 600;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 0 hsl(var(--primary-hover));
 }
 
 .submitBtn:hover {
     background: hsl(var(--primary-hover));
+}
+
+.submitBtn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 hsl(var(--primary-hover));
 }
 
 @keyframes fadeIn {

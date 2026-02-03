@@ -10,6 +10,7 @@ interface ModalProps {
     closeOnOutsideClick?: boolean;
     className?: string;
     onClick?: () => void;
+    footer?: React.ReactNode;
 }
 
 export default function Modal({
@@ -20,8 +21,19 @@ export default function Modal({
     hideClose,
     closeOnOutsideClick = true,
     className = '',
-    onClick
+    onClick,
+    footer
 }: ModalProps) {
+    // Body scroll lock
+    useEffect(() => {
+        if (isOpen) {
+            document.body.classList.add(styles.noScroll);
+        } else {
+            document.body.classList.remove(styles.noScroll);
+        }
+        return () => document.body.classList.remove(styles.noScroll);
+    }, [isOpen]);
+
     // Close on Escape key
     useEffect(() => {
         if (!isOpen || hideClose) return;
@@ -58,6 +70,11 @@ export default function Modal({
                 </div>
                 {children}
             </div>
+            {footer && (
+                <div className={styles.externalFooter} onClick={(e) => e.stopPropagation()}>
+                    {footer}
+                </div>
+            )}
         </div>
     );
 }
