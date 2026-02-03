@@ -313,19 +313,6 @@ export default function AdminDashboard() {
                             <span style={{ fontSize: '2rem' }}>👤</span>
                             <span style={{ fontWeight: 600, color: 'hsl(var(--primary))' }}>Add Admin</span>
                         </button>
-                        <button onClick={async () => {
-                            if (!confirm('This will copy data from the legacy "EventUsers" table to the new "EventParticipant" table. Ensure you have run the migration to add the new table first. Proceed?')) return;
-                            try {
-                                const res = await fetch('/api/admin/migrate/legacy-data', { method: 'POST' });
-                                const data = await res.json();
-                                alert(data.message + (data.errors ? '\nErrors:\n' + data.errors.join('\n') : ''));
-                            } catch (err: any) {
-                                alert('Migration failed: ' + err.message);
-                            }
-                        }} className={`glass-panel ${styles.actionBtn}`} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                            <span style={{ fontSize: '2rem' }}>🔄</span>
-                            <span style={{ fontWeight: 600, color: '#f59e0b' }}>Migrate Data</span>
-                        </button>
                     </div>
                 </div>
 

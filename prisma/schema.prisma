@@ -28,9 +28,6 @@ model User {
   
   // Tie to multiple events via explicit relation
   participations EventParticipant[]
-
-  // DEPRECATED: Keep for migration
-  events        Event[]   @relation("EventUsers")
   
   // Track events created by this user (typically SUPER_ADMIN)
   createdEvents Event[]   @relation("EventCreator")
@@ -50,7 +47,6 @@ model Event {
 
   // Relations
   participants EventParticipant[]
-  users       User[]   @relation("EventUsers") // DEPRECATED: Keep for migration
   teams       Team[]
   items       Item[]
   rules       String?  // Event-specific rules/guidelines
