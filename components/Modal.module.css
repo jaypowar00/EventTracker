@@ -4,8 +4,10 @@
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding: 24px 1rem;
+    overflow-y: auto;
     z-index: 1000;
     animation: fadeIn 0.2s ease-out;
 }
@@ -17,9 +19,13 @@
     padding: 1.5rem;
     width: 90%;
     max-width: 500px;
+    max-height: 82vh;
+    overflow-y: auto;
     box-shadow: var(--shadow-lg);
     position: relative;
     animation: scaleUp 0.2s ease-out;
+    display: flex;
+    flex-direction: column;
 }
 
 .header {
