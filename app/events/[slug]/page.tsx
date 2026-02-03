@@ -565,11 +565,13 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                                 <td style={{ padding: '1rem 1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                     <div style={{ width: '24px', height: '24px', borderRadius: '4px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: AVATARS[team.iconIndex || 0] }} />
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span>{team.name} {team.id === currentTeam?.id && <span style={{ fontSize: '0.65rem', background: 'hsl(var(--primary))', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '1rem', marginLeft: '0.5rem', verticalAlign: 'middle' }}>YOUR TEAM</span>}</span>
+                                                        <span style={{ color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'inherit', fontWeight: team.id === currentTeam?.id ? 700 : 600 }}>
+                                                            {team.name} {team.id === currentTeam?.id && <span style={{ fontSize: '0.65rem', background: 'hsl(var(--primary))', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '1rem', marginLeft: '0.5rem', verticalAlign: 'middle' }}>YOUR TEAM</span>}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontWeight: 700, color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'inherit' }}>
-                                                    {team.totalPoints > 0 ? `${team.totalPoints.toLocaleString()} pts` : <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.75rem' }}>(unranked)</span>}
+                                                    {team.totalPoints > 0 ? `${formatPoints(team.totalPoints)} pts` : <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.75rem' }}>(unranked)</span>}
                                                 </td>
                                             </tr>
                                         );
@@ -699,11 +701,34 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
 
             {/* Rules Section (Full Width Bottom) */}
             {event?.rules && (
-                <section className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', marginTop: '2rem' }}>
-                    <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        📜 Event Rules
+                <section
+                    className="glass-panel"
+                    style={{
+                        padding: '2rem',
+                        borderRadius: '1.25rem',
+                        marginTop: '3rem',
+                        marginBottom: '4rem',
+                        border: '1px solid var(--border)',
+                        background: 'hsl(var(--card))'
+                    }}
+                >
+                    <h2 style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 800,
+                        marginBottom: '1.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        color: 'hsl(var(--foreground))'
+                    }}>
+                        <span style={{ fontSize: '1.5rem' }}>📜</span> Event Rules & Guidelines
                     </h2>
-                    <div style={{ color: 'hsl(var(--muted-foreground))', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    <div style={{
+                        color: 'hsl(var(--muted-foreground))',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.8,
+                        fontSize: '0.95rem'
+                    }}>
                         {event.rules}
                     </div>
                 </section>
@@ -949,7 +974,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                                 <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>ID: {member.publicId}</div>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontWeight: 700, color: 'hsl(var(--primary))' }}>{member.points} pts</div>
+                                                <div style={{ fontWeight: 700, color: 'hsl(var(--primary))' }}>{formatPoints(member.points)} pts</div>
                                             </div>
                                         </div>
                                     ))}
@@ -957,7 +982,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             </div>
 
                             {/* Internal Team History */}
-                            <TeamHistory teamId={selectedTeam.id} eventSlug={slug} />
+                            <TeamHistory teamId={selectedTeam.id} eventSlug={slug} currentUser={user} />
                         </div>
 
                         <div className={modalStyles.footer} style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
@@ -1334,7 +1359,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     );
 }
 
-function TeamHistory({ teamId, eventSlug }: { teamId: string, eventSlug: string }) {
+function TeamHistory({ teamId, eventSlug, currentUser }: { teamId: string, eventSlug: string, currentUser: any }) {
     const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
         if (!data.status) throw new Error(data.message);
         return data.data;
@@ -1352,20 +1377,39 @@ function TeamHistory({ teamId, eventSlug }: { teamId: string, eventSlug: string 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', maxHeight: '200px', overflowY: 'auto' }}>
                 {history.length === 0 ? (
                     <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', textAlign: 'center', padding: '1rem' }}>No entries yet.</p>
-                ) : history.map((entry: any) => (
-                    <div key={entry.id} style={{ fontSize: '0.75rem', padding: '0.5rem', background: 'hsl(var(--foreground) / 0.02)', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                            <strong>{entry.username}</strong>
-                            <span style={{ opacity: 0.6 }}>{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                ) : history.map((item: any) => (
+                    <div key={item.id} style={{
+                        padding: '0.75rem',
+                        borderRadius: '0.75rem',
+                        background: 'hsl(var(--foreground) / 0.03)',
+                        border: '1px solid var(--border)',
+                        fontSize: '0.85rem',
+                        position: 'relative'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', overflow: 'hidden', border: '1.2px solid hsl(var(--primary))' }} dangerouslySetInnerHTML={{ __html: AVATARS[item.avatarIndex || 0] }} />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{item.username} {item.username === currentUser?.username && <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>(You)</span>}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div
+                                    style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: '0.9rem' }}
+                                    title={item.points.toLocaleString() + " points"}
+                                >
+                                    +{formatPoints(item.points)} pts
+                                </div>
+                            </div>
                         </div>
-                        <div style={{ color: '#3b82f6', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.7rem' }}>{entry.count}x {entry.itemName}</span>
-                            <span
-                                style={{ color: 'hsl(var(--primary))', fontWeight: 800 }}
-                                title={entry.points.toLocaleString() + " points"}
-                            >
-                                +{formatPoints(entry.points)} pts
-                            </span>
+
+                        <div className="glass-panel" style={{ padding: '0.5rem', background: 'hsl(var(--foreground) / 0.02)', borderRadius: '0.4rem', border: '1px solid var(--border)' }}>
+                            <div style={{ fontWeight: 600, marginBottom: '0.15rem', fontSize: '0.8rem', wordBreak: 'break-word' }}>{item.count}x {item.itemName}</div>
+                            <div style={{ fontSize: '0.65rem', color: '#3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 500 }}>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <span>💧 {item.volume}ml</span>
+                                    <span>🍷 {item.percentage}% ABV</span>
+                                </div>
+                                <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>🕒 {formatTime12H(item.timestamp)}</span>
+                            </div>
                         </div>
                     </div>
                 ))}
