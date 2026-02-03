@@ -35,7 +35,7 @@ export async function POST(request: Request) {
                 include: { participations: { include: { event: { select: { id: true } } } } }
             });
 
-            if (!currentUser || (currentUser as any).events.length === 0) {
+            if (!currentUser || currentUser.participations.length === 0) {
                 return NextResponse.json({ status: false, message: 'Admin event context missing' }, { status: 200 });
             }
             // Force role to PARTICIPANT and eventIds to admin's first event (for now)

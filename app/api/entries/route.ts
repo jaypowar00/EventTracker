@@ -40,11 +40,11 @@ export async function POST(request: Request) {
             where: { id: payload.userId },
             include: {
                 memberships: { include: { team: true } },
-                events: { select: { id: true } }
+                participations: { select: { eventId: true } }
             }
         } as any);
 
-        const isMember = (user as any)?.events.some((e: any) => e.id === eventId);
+        const isMember = (user as any)?.participations.some((p: any) => p.eventId === eventId);
         if (!user || !isMember) {
             return NextResponse.json({ status: false, message: 'User not associated with this event' }, { status: 200 });
         }
