@@ -942,7 +942,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 title="Team Details"
                 className="team-details-modal"
                 footer={(
-                    <button onClick={() => setSelectedTeam(null)} className={modalStyles.submitBtn} style={{ width: '100%', padding: '0.7rem' }}>Close Preview</button>
+                    <button onClick={() => setSelectedTeam(null)} className={modalStyles.submitBtn} style={{ width: '100%', padding: '0.7rem', borderRadius: '0.5rem 0.5rem 3rem 3rem' }}>Close Preview</button>
                 )}
             >
                 {selectedTeam && (
@@ -1070,7 +1070,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                         </div>
                     </div>
                     <div className={modalStyles.footer}>
-                        <button onClick={() => setIsItemsModalOpen(false)} className={modalStyles.submitBtn} style={{ width: '100%' }}>Close Library</button>
+                        <button onClick={() => setIsItemsModalOpen(false)} className={modalStyles.submitBtn} style={{ width: '100%', borderRadius: '0.5rem 0.5rem 3rem 3rem' }}>Close Library</button>
                     </div>
                 </div>
             </Modal>
