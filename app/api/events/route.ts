@@ -25,7 +25,7 @@ export async function GET() {
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: {
-                    select: { teams: true, users: true },
+                    select: { teams: true, participants: true },
                 },
                 createdByUser: {
                     select: { username: true }
@@ -37,7 +37,7 @@ export async function GET() {
             ...event,
             _count: {
                 ...event._count,
-                participants: event._count.users
+                participants: event._count.participants
             }
         }));
 

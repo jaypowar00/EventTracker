@@ -20,7 +20,7 @@ export async function GET(
             },
             include: {
                 _count: {
-                    select: { teams: true, users: true }
+                    select: { teams: true, participants: true }
                 }
             }
         });

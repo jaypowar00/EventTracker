@@ -25,17 +25,21 @@ export async function GET() {
                 role: true,
                 publicId: true,
                 createdAt: true,
-                hasSeenWelcome: true,
                 avatarIndex: true,
-                events: {
+                participations: {
                     select: {
-                        id: true,
-                        name: true,
-                        slug: true,
-                        status: true,
-                        startDate: true,
-                        endDate: true
-                    } as any
+                        hasSeenWelcome: true,
+                        event: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true,
+                                status: true,
+                                startDate: true,
+                                endDate: true
+                            }
+                        }
+                    }
                 },
                 memberships: {
                     include: {
@@ -49,9 +53,19 @@ export async function GET() {
             return NextResponse.json({ status: false, message: 'User not found' }, { status: 200 });
         }
 
+        // Transform to flat structure for frontend compatibility
+        const formattedUser = {
+            ...user,
+            participations: undefined,
+            events: user.participations.map((p: any) => ({
+                ...p.event,
+                hasSeenWelcome: p.hasSeenWelcome
+            }))
+        };
+
         return NextResponse.json({
             status: true,
-            data: user
+            data: formattedUser
         });
 
     } catch (error: any) {

@@ -95,6 +95,19 @@ export async function POST(request: Request) {
                     }
                 });
 
+                // Mark welcome as seen for this event
+                await tx.eventParticipant.upsert({
+                    where: {
+                        userId_eventId: { userId: payload.userId, eventId: eventId }
+                    },
+                    update: { hasSeenWelcome: true },
+                    create: {
+                        userId: payload.userId,
+                        eventId: eventId,
+                        hasSeenWelcome: true
+                    }
+                });
+
                 return NextResponse.json({ status: true, message: 'Default team established' });
             });
         }

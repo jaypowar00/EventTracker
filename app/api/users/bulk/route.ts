@@ -61,8 +61,31 @@ export async function POST(request: Request) {
                 return NextResponse.json({ status: false, message: 'No users selected' }, { status: 200 });
             }
 
-            await prisma.user.updateMany({
-                where: { id: { in: userIds } },
+            // Determine target events
+            let targetEventIds: string[] = [];
+            if (payload.role === 'EVENT_ADMIN') {
+                const adminUser = await prisma.user.findUnique({
+                    where: { id: payload.userId },
+                    include: { participations: { include: { event: { select: { id: true } } } } }
+                }) as any;
+                if (adminUser?.participations?.length > 0) {
+                    targetEventIds = [adminUser.participations[0].event.id];
+                }
+            } else if (eventIds && Array.isArray(eventIds)) {
+                targetEventIds = eventIds;
+            } else if (eventId) {
+                targetEventIds = [eventId];
+            }
+
+            if (targetEventIds.length === 0) {
+                return NextResponse.json({ status: false, message: 'No event context for welcome toggle' }, { status: 200 });
+            }
+
+            await prisma.eventParticipant.updateMany({
+                where: {
+                    userId: { in: userIds },
+                    eventId: { in: targetEventIds }
+                },
                 data: { hasSeenWelcome: value }
             });
 
@@ -86,12 +109,12 @@ export async function POST(request: Request) {
             if (payload.role === 'EVENT_ADMIN') {
                 const adminUser = await prisma.user.findUnique({
                     where: { id: payload.userId },
-                    include: { events: { select: { id: true } } }
+                    include: { participations: { include: { event: { select: { id: true } } } } }
                 }) as any;
-                if (!adminUser || !adminUser.events || adminUser.events.length === 0) {
+                if (!adminUser || !adminUser.participations || adminUser.participations.length === 0) {
                     return NextResponse.json({ status: false, message: 'Admin has no events' }, { status: 200 });
                 }
-                targetEventIds = [adminUser.events[0].id]; // Default to first event for now
+                targetEventIds = [adminUser.participations[0].event.id]; // Default to first event for now
             } else if (eventIds && Array.isArray(eventIds)) {
                 targetEventIds = eventIds;
             } else if (eventId) {
@@ -124,29 +147,11 @@ export async function POST(request: Request) {
                                 publicId,
                                 role: 'PARTICIPANT', // Bulk create defaults to Participant
                                 avatarIndex,
-                                events: {
-                                    connect: targetEventIds.map(id => ({ id }))
+                                participations: {
+                                    create: targetEventIds.map(id => ({ eventId: id }))
                                 }
                             }
                         });
-
-                        // Create Team if event is present
-                        if (targetEventIds.length > 0) {
-                            for (const tid of targetEventIds) {
-                                const teamPublicId = await generateUniquePublicId(tx, 'team');
-                                const team = await tx.team.create({
-                                    data: {
-                                        name: username,
-                                        publicId: teamPublicId,
-                                        eventId: tid,
-                                        iconIndex: avatarIndex,
-                                    }
-                                });
-                                await tx.teamMember.create({
-                                    data: { userId: newUser.id, teamId: team.id }
-                                });
-                            }
-                        }
 
                         createdUsers.push({ username, password });
                     });

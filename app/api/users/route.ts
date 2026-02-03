@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         if (payload.role === 'EVENT_ADMIN') {
             const currentUser = await prisma.user.findUnique({
                 where: { id: payload.userId },
-                include: { events: { select: { id: true } } }
+                include: { participations: { include: { event: { select: { id: true } } } } }
             });
 
             if (!currentUser || (currentUser as any).events.length === 0) {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
             }
             // Force role to PARTICIPANT and eventIds to admin's first event (for now)
             role = 'PARTICIPANT';
-            eventIds = [(currentUser as any).events[0].id];
+            eventIds = [(currentUser as any).participations[0].event.id];
         }
 
         if (!username || !role) {
@@ -75,8 +75,8 @@ export async function POST(request: Request) {
                     publicId,
                     role,
                     avatarIndex,
-                    events: {
-                        connect: eventIds.map((id: string) => ({ id }))
+                    participations: {
+                        create: eventIds.map((id: string) => ({ eventId: id }))
                     }
                 },
                 select: {
@@ -85,31 +85,15 @@ export async function POST(request: Request) {
                     publicId: true,
                     role: true,
                     createdAt: true,
-                    events: { select: { id: true, name: true } }
+                    participations: {
+                        select: {
+                            event: {
+                                select: { id: true, name: true }
+                            }
+                        }
+                    }
                 },
             });
-
-            // Automatically create team for PARTICIPANT in each event
-            if (role === 'PARTICIPANT' && eventIds.length > 0) {
-                for (const targetEventId of eventIds) {
-                    const teamPublicId = await generateUniquePublicId(tx, 'team');
-                    const team = await tx.team.create({
-                        data: {
-                            name: username,
-                            publicId: teamPublicId,
-                            eventId: targetEventId,
-                            iconIndex: avatarIndex,
-                        }
-                    });
-
-                    await tx.teamMember.create({
-                        data: {
-                            userId: newUser.id,
-                            teamId: team.id
-                        }
-                    });
-                }
-            }
 
             return newUser;
         });
@@ -176,19 +160,32 @@ export async function GET() {
                 username: true,
                 publicId: true,
                 role: true,
-                hasSeenWelcome: true,
+
                 createdAt: true,
-                events: {
+                participations: {
                     select: {
-                        id: true,
-                        name: true,
-                        slug: true
+                        event: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true
+                            }
+                        }
                     }
                 }
             },
         });
 
-        return NextResponse.json({ status: true, message: 'Users fetched successfully', data: users });
+        const formattedUsers = users.map((user: any) => ({
+            ...user,
+            participations: undefined,
+            events: user.participations.map((p: any) => ({
+                ...p.event,
+                hasSeenWelcome: p.hasSeenWelcome
+            }))
+        }));
+
+        return NextResponse.json({ status: true, message: 'Users fetched successfully', data: formattedUsers });
     } catch (error) {
         console.error('Error fetching users:', error);
         return NextResponse.json({ status: false, message: 'Internal Server Error' }, { status: 500 });

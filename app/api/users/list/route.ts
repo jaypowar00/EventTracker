@@ -24,7 +24,6 @@ export async function GET() {
                 username: true,
                 publicId: true,
                 role: true,
-                hasSeenWelcome: true,
                 createdAt: true,
                 events: {
                     select: {

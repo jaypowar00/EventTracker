@@ -46,7 +46,6 @@ export async function PATCH(request: Request) {
 
         // 4. Identity & Onboarding
         if (avatarIndex !== undefined) updateData.avatarIndex = avatarIndex;
-        if (hasSeenWelcome !== undefined) updateData.hasSeenWelcome = hasSeenWelcome;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ status: false, message: 'No changes provided' }, { status: 200 });
@@ -58,8 +57,7 @@ export async function PATCH(request: Request) {
             select: {
                 id: true,
                 username: true,
-                avatarIndex: true,
-                hasSeenWelcome: true
+                avatarIndex: true
             }
         });
 
