@@ -13,6 +13,17 @@ const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data =>
     return data.data;
 });
 
+// Formatting Helpers
+const formatPoints = (points: number) => {
+    if (points >= 1000000) return (points / 1000000).toFixed(1) + 'M';
+    if (points >= 1000) return (points / 1000).toFixed(1) + 'K';
+    return Math.round(points).toLocaleString();
+};
+
+const formatTime12H = (date: string | Date) => {
+    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+};
+
 export default function EventPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = use(params);
 
@@ -42,6 +53,8 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
     const [editedRules, setEditedRules] = useState('');
     const [editedEvent, setEditedEvent] = useState({ name: '', slug: '' });
     const [newItemData, setNewItemData] = useState({ name: '', volume: '30', percentage: '4.8' });
+    const [editingEntry, setEditingEntry] = useState<any>(null);
+    const [editFormData, setEditFormData] = useState({ quantity: '', volume: '', percentage: '' });
 
     useEffect(() => {
         if (event) {
@@ -243,6 +256,28 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             mutateLeaderboard();
         } catch (err: any) {
             alert(err.message);
+        }
+    };
+
+    const handleUpdateEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingEntry) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/entries/${editingEntry.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(editFormData)
+            });
+            const data = await res.json();
+            if (!data.status) throw new Error(data.message);
+
+            setEditingEntry(null);
+            mutateHistory();
+            mutateLeaderboard();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -486,7 +521,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                             WebkitBoxOrient: 'vertical',
                                             overflow: 'hidden'
                                         }}>{team.name}</h3>
-                                        <div style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: idx === 0 ? '1.1rem' : '1rem' }}>{team.totalPoints} pts</div>
+                                        <div
+                                            style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: idx === 0 ? '1.1rem' : '1rem' }}
+                                            title={team.totalPoints.toLocaleString() + " points"}
+                                        >
+                                            {formatPoints(team.totalPoints)} pts
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -511,18 +551,25 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                             <tr
                                                 key={team.id}
                                                 onClick={() => setSelectedTeam(team)}
-                                                style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.2s ease' }}
+                                                style={{
+                                                    borderBottom: '1px solid var(--border)',
+                                                    cursor: 'pointer',
+                                                    transition: 'background 0.2s ease',
+                                                    background: team.id === currentTeam?.id ? 'hsl(var(--primary) / 0.05)' : 'transparent'
+                                                }}
                                                 className="leaderboard-row"
                                             >
-                                                <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'hsl(var(--muted-foreground))' }}>
+                                                <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>
                                                     {team.totalPoints > 0 ? `#${globalIndex + 1}` : '-'}
                                                 </td>
                                                 <td style={{ padding: '1rem 1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                     <div style={{ width: '24px', height: '24px', borderRadius: '4px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: AVATARS[team.iconIndex || 0] }} />
-                                                    {team.name}
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span>{team.name} {team.id === currentTeam?.id && <span style={{ fontSize: '0.65rem', background: 'hsl(var(--primary))', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '1rem', marginLeft: '0.5rem', verticalAlign: 'middle' }}>YOUR TEAM</span>}</span>
+                                                    </div>
                                                 </td>
-                                                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontWeight: 700 }}>
-                                                    {team.totalPoints > 0 ? `${team.totalPoints} pts` : <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.75rem' }}>(unranked)</span>}
+                                                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontWeight: 700, color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'inherit' }}>
+                                                    {team.totalPoints > 0 ? `${team.totalPoints.toLocaleString()} pts` : <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.75rem' }}>(unranked)</span>}
                                                 </td>
                                             </tr>
                                         );
@@ -532,22 +579,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                         </div>
                     </section>
 
-                    {/* Rules Section */}
-                    {event?.rules && (
-                        <section className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem' }}>
-                            <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                📜 Event Rules
-                            </h2>
-                            <div style={{ color: 'hsl(var(--muted-foreground))', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                                {event.rules}
-                            </div>
-                        </section>
-                    )}
+
                 </main>
 
                 <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: 'fit-content', position: 'sticky', top: '1rem' }}>
                     {/* Points History */}
-                    <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', maxHeight: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column' }}>
+                    <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 📊 Points History
@@ -596,45 +633,62 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                 (activeHistoryTab === 'global' ? history : history.filter((item: any) => item.username === user?.username)).length === 0 ? (
                                     <p style={{ textAlign: 'center', color: 'hsl(var(--muted-foreground))', padding: '2rem 0' }}>{activeHistoryTab === 'your' ? "You haven't earned any points yet." : "No entries found."}</p>
                                 ) : (activeHistoryTab === 'global' ? history : history.filter((item: any) => item.username === user?.username)).map((item: any) => (
-                                    <div key={item.id} style={{ padding: '0.85rem', borderRadius: '0.75rem', background: 'hsl(var(--foreground) / 0.03)', border: '1px solid var(--border)', fontSize: '0.875rem' }}>
-                                        <div style={{ color: 'hsl(var(--foreground))', marginBottom: '0.25rem' }}>
-                                            <div style={{ display: 'inline-block', width: '20px', height: '20px', verticalAlign: 'middle', marginRight: '0.5rem' }} dangerouslySetInnerHTML={{ __html: AVATARS[item.avatarIndex || 0] }} />
-                                            <strong>{item.username}</strong> earned <span style={{ color: 'hsl(var(--primary))', fontWeight: 700 }}>{item.points} Point{item.points !== 1 ? 's' : ''}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                                            <span style={{ color: 'hsl(var(--primary))', opacity: 0.8 }}>
-                                                Entry: {item.count}x
-                                                <span
-                                                    onClick={() => {
-                                                        if (['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role)) {
-                                                            setEditingItem({ id: item.itemId, name: item.itemName, defaultPoints: item.itemPoints });
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        cursor: ['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) ? 'pointer' : 'default',
-                                                        textDecoration: ['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) ? 'underline dotted' : 'none',
-                                                        marginLeft: '4px'
-                                                    }}
-                                                    title={['SUPER_ADMIN', 'EVENT_ADMIN'].includes(user?.role) ? "Click to edit item points" : ""}
+                                    <div key={item.id} style={{
+                                        padding: '1rem',
+                                        borderRadius: '0.75rem',
+                                        background: 'hsl(var(--foreground) / 0.03)',
+                                        border: '1px solid var(--border)',
+                                        fontSize: '0.875rem',
+                                        position: 'relative',
+                                        minHeight: 'fit-content'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', border: '1.5px solid hsl(var(--primary))' }} dangerouslySetInnerHTML={{ __html: AVATARS[item.avatarIndex || 0] }} />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 700 }}>{item.username} {item.username === user?.username && <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>(You)</span>}</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{item.teamName}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div
+                                                    style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: '1rem' }}
+                                                    title={item.points.toLocaleString() + " points"}
                                                 >
-                                                    {item.itemName}
-                                                </span>
-                                            </span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                {(user?.role === 'SUPER_ADMIN' || user?.username === item.username) && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleDeleteEntry(item.id); }}
-                                                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.75rem', padding: '2px', opacity: 0.6 }}
-                                                        title="Delete Entry"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                )}
+                                                    +{formatPoints(item.points)} pts
+                                                </div>
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                                            <span>Team: {item.teamName}</span>
+
+                                        <div
+                                            className="glass-panel"
+                                            style={{
+                                                padding: '0.6rem',
+                                                background: 'hsl(var(--foreground) / 0.02)',
+                                                borderRadius: '0.5rem',
+                                                border: '1px solid var(--border)',
+                                                marginBottom: '0.25rem',
+                                                cursor: (user?.role === 'SUPER_ADMIN' || user?.username === item.username) ? 'pointer' : 'default',
+                                                transition: 'background 0.2s ease'
+                                            }}
+                                            onClick={() => {
+                                                if (user?.role === 'SUPER_ADMIN' || user?.username === item.username) {
+                                                    setEditingEntry(item);
+                                                    setEditFormData({
+                                                        quantity: item.count.toString(),
+                                                        volume: item.volume.toString(),
+                                                        percentage: item.percentage.toString()
+                                                    });
+                                                }
+                                            }}
+                                            title={(user?.role === 'SUPER_ADMIN' || user?.username === item.username) ? "Click to edit or delete" : ""}
+                                        >
+                                            <div style={{ fontWeight: 600, marginBottom: '0.2rem', fontSize: '0.85rem', wordBreak: 'break-word' }}>{item.count}x {item.itemName}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 500 }}>
+                                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                                    <span>💧 {item.volume}ml</span>
+                                                    <span>🍷 {item.percentage}% ABV</span>
+                                                </div>
+                                                <span style={{ opacity: 0.6, fontSize: '0.65rem' }}>🕒 {formatTime12H(item.timestamp)}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )))}
@@ -642,6 +696,18 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     </div>
                 </aside>
             </div>
+
+            {/* Rules Section (Full Width Bottom) */}
+            {event?.rules && (
+                <section className="glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', marginTop: '2rem' }}>
+                    <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📜 Event Rules
+                    </h2>
+                    <div style={{ color: 'hsl(var(--muted-foreground))', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                        {event.rules}
+                    </div>
+                </section>
+            )}
 
             {/* Welcome Onboarding Modal */}
             <Modal isOpen={isWelcomeModalOpen} onClose={() => { }} title={`Welcome to ${event?.name}!`} hideClose={true}>
@@ -800,8 +866,11 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                     </div>
                     <div style={{ background: 'hsl(var(--primary) / 0.05)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid hsl(var(--primary) / 0.1)' }}>
                         <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Estimated Points</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'hsl(var(--primary))' }}>
-                            {Math.round((parseInt(entryData.volume || '0') * parseFloat(entryData.percentage || '0') * parseInt(entryData.quantity || '0')) / 10)} pts
+                        <div
+                            style={{ fontSize: '1.25rem', fontWeight: 800, color: 'hsl(var(--primary))', cursor: 'help' }}
+                            title={"Exact calculation: " + Math.round((parseInt(entryData.volume || '0') * parseFloat(entryData.percentage || '0') * parseInt(entryData.quantity || '0')) / 10).toLocaleString() + " pts"}
+                        >
+                            {formatPoints(Math.round((parseInt(entryData.volume || '0') * parseFloat(entryData.percentage || '0') * parseInt(entryData.quantity || '0')) / 10))} pts
                         </div>
                     </div>
                     <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '-0.5rem' }}>
@@ -857,7 +926,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             <div style={{ textAlign: 'center', position: 'sticky', top: 0, background: 'hsl(var(--card))', zIndex: 10, padding: '1rem 0' }}>
                                 <div style={{ width: '80px', height: '80px', margin: '0 auto 1rem', borderRadius: '1.25rem', border: '3px solid hsl(var(--primary))', padding: '8px', background: 'hsl(var(--primary) / 0.05)' }} dangerouslySetInnerHTML={{ __html: AVATARS[selectedTeam.iconIndex || 0] }} />
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.25rem' }}>{selectedTeam.name}</h3>
-                                <div style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: '1.1rem' }}>{selectedTeam.totalPoints} Points</div>
+                                <div
+                                    style={{ color: 'hsl(var(--primary))', fontWeight: 800, fontSize: '1.2rem', cursor: 'help' }}
+                                    title={"Exact score: " + selectedTeam.totalPoints.toLocaleString() + " points"}
+                                >
+                                    {formatPoints(selectedTeam.totalPoints)} Points
+                                </div>
                             </div>
 
                             <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
@@ -1022,6 +1096,84 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                             <button type="submit" disabled={loading} className={modalStyles.submitBtn}>
                                 {loading ? 'Saving...' : 'Update Preset'}
                             </button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
+
+            {/* Edit Entry Modal */}
+            <Modal isOpen={!!editingEntry} onClose={() => setEditingEntry(null)} title="Edit Entry">
+                {editingEntry && (
+                    <form onSubmit={handleUpdateEntry} className={modalStyles.form}>
+                        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{editingEntry.itemName}</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Update entry details</p>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label className={loginStyles.label}>Volume (ml)</label>
+                                <input
+                                    type="number"
+                                    className={loginStyles.input}
+                                    value={editFormData.volume}
+                                    onChange={e => setEditFormData({ ...editFormData, volume: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className={loginStyles.label}>Percentage (%)</label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    className={loginStyles.input}
+                                    value={editFormData.percentage}
+                                    onChange={e => setEditFormData({ ...editFormData, percentage: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className={loginStyles.label}>Quantity</label>
+                            <input
+                                type="number"
+                                className={loginStyles.input}
+                                value={editFormData.quantity}
+                                onChange={e => setEditFormData({ ...editFormData, quantity: e.target.value })}
+                                required
+                            />
+                        </div>
+
+                        <div style={{ background: 'hsl(var(--primary) / 0.05)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid hsl(var(--primary) / 0.1)', marginTop: '0.5rem' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>New Estimated Points</div>
+                            <div
+                                style={{ fontSize: '1.25rem', fontWeight: 800, color: 'hsl(var(--primary))', cursor: 'help' }}
+                                title={"Exact calculation: " + Math.round((parseInt(editFormData.volume || '0') * parseFloat(editFormData.percentage || '0') * parseInt(editFormData.quantity || '0')) / 10).toLocaleString() + " pts"}
+                            >
+                                {formatPoints(Math.round((parseInt(editFormData.volume || '0') * parseFloat(editFormData.percentage || '0') * parseInt(editFormData.quantity || '0')) / 10))} pts
+                            </div>
+                        </div>
+
+                        <div className={modalStyles.footer} style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirm('Are you sure you want to delete this entry?')) {
+                                        handleDeleteEntry(editingEntry.id);
+                                        setEditingEntry(null);
+                                    }
+                                }}
+                                className={modalStyles.cancelBtn}
+                                style={{ color: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive) / 0.2)' }}
+                            >
+                                🗑️ Delete
+                            </button>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button type="button" onClick={() => setEditingEntry(null)} className={modalStyles.cancelBtn}>Cancel</button>
+                                <button type="submit" disabled={loading} className={modalStyles.submitBtn}>
+                                    {loading ? 'Saving...' : 'Update Entry'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 )}
@@ -1206,8 +1358,14 @@ function TeamHistory({ teamId, eventSlug }: { teamId: string, eventSlug: string 
                             <strong>{entry.username}</strong>
                             <span style={{ opacity: 0.6 }}>{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                        <div style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>
-                            {entry.count}x {entry.itemName} (+{entry.points} pts)
+                        <div style={{ color: '#3b82f6', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem' }}>{entry.count}x {entry.itemName}</span>
+                            <span
+                                style={{ color: 'hsl(var(--primary))', fontWeight: 800 }}
+                                title={entry.points.toLocaleString() + " points"}
+                            >
+                                +{formatPoints(entry.points)} pts
+                            </span>
                         </div>
                     </div>
                 ))}
