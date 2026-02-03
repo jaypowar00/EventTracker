@@ -97,6 +97,7 @@ export async function PATCH(
             action: 'EVENT_UPDATE',
             details: {
                 eventId: event.id,
+                eventName: updatedEvent.name,
                 updatedFields: Object.keys(updateData)
             },
             actorId: payload.userId,
