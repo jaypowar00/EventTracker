@@ -941,11 +941,14 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 onClose={() => setSelectedTeam(null)}
                 title="Team Details"
                 className="team-details-modal"
+                footer={(
+                    <button onClick={() => setSelectedTeam(null)} className={modalStyles.submitBtn} style={{ width: '100%', padding: '0.7rem' }}>Close Preview</button>
+                )}
             >
                 {selectedTeam && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
-                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingRight: '0.5rem' }}>
-                            <div style={{ textAlign: 'center', position: 'sticky', top: 0, background: 'hsl(var(--card))', zIndex: 10, padding: '1rem 0' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', paddingRight: '0rem', paddingLeft: '0rem' }}>
+                            <div style={{ textAlign: 'center', top: 0, background: 'hsl(var(--card))', zIndex: 10, padding: '1rem 0' }}>
                                 <div style={{ width: '80px', height: '80px', margin: '0 auto 1rem', borderRadius: '1.25rem', border: '3px solid hsl(var(--primary))', padding: '8px', background: 'hsl(var(--primary) / 0.05)' }} dangerouslySetInnerHTML={{ __html: AVATARS[selectedTeam.iconIndex || 0] }} />
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.25rem' }}>{selectedTeam.name}</h3>
                                 <div
@@ -955,8 +958,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                     {formatPoints(selectedTeam.totalPoints)} Points
                                 </div>
                             </div>
-
-                            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+                            <div className="glass-panel team-details-inner-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                                     <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                         👥 Members ({selectedTeam.memberCount})
@@ -980,10 +982,6 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
 
                             {/* Internal Team History */}
                             <TeamHistory teamId={selectedTeam.id} eventSlug={slug} currentUser={user} />
-                        </div>
-
-                        <div className={modalStyles.footer} style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                            <button onClick={() => setSelectedTeam(null)} className={modalStyles.submitBtn} style={{ width: '100%' }}>Close Preview</button>
                         </div>
                     </div>
                 )}
@@ -1315,15 +1313,17 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 }
 
                 :global(.team-details-modal) {
-                    height: 80vh !important;
+                    height: 70vh !important;
                     min-height: 400px;
-                    max-height: 80vh !important;
-                    margin-top: -6vh !important;
+                    max-height: 70vh !important;
                     display: flex;
                     flex-direction: column;
                 }
 
                 @media (max-width: 1023px) {
+                    .team-details-inner-panel {
+                        padding: 0.75rem !important;
+                    }
                     * {
                         scrollbar-width: thin;
                         scrollbar-color: hsl(var(--primary) / 0.2) transparent;
@@ -1341,7 +1341,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                 }
                     :global(.library-modal) {
                         max-height: 80vh !important;
-                        margin-top: -6vh !important;
+                        margin-top: -2vh !important;
                         display: flex;
                         flex-direction: column;
                     }
@@ -1367,11 +1367,11 @@ function TeamHistory({ teamId, eventSlug, currentUser }: { teamId: string, event
     if (!history) return null;
 
     return (
-        <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+        <div className="glass-panel team-details-inner-panel" style={{ padding: '1rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
             <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
                 📜 Activity Log
             </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', maxHeight: '200px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 {history.length === 0 ? (
                     <p style={{ fontSize: '0.875rem', color: 'hsl(var(--muted-foreground))', textAlign: 'center', padding: '1rem' }}>No entries yet.</p>
                 ) : history.map((item: any) => (
