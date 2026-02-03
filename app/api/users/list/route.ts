@@ -25,11 +25,15 @@ export async function GET() {
                 publicId: true,
                 role: true,
                 createdAt: true,
-                events: {
+                participations: {
                     select: {
-                        id: true,
-                        name: true,
-                        slug: true
+                        event: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true
+                            }
+                        }
                     }
                 }
             },
@@ -40,7 +44,11 @@ export async function GET() {
 
         return NextResponse.json({
             status: true,
-            data: users
+            data: users.map(u => ({
+                ...u,
+                events: u.participations.map((p: any) => p.event),
+                participations: undefined
+            }))
         });
 
     } catch (error: any) {

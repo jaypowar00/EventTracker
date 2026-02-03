@@ -16,9 +16,13 @@ export async function POST(request: Request) {
         const user = await prisma.user.findUnique({
             where: { username },
             include: {
-                events: {
+                participations: {
                     select: {
-                        slug: true
+                        event: {
+                            select: {
+                                slug: true
+                            }
+                        }
                     }
                 }
             } as any
@@ -52,7 +56,7 @@ export async function POST(request: Request) {
             path: '/',
         });
 
-        const eventSlug = user.role === 'SUPER_ADMIN' ? null : ((user as any).events.length === 1 ? (user as any).events[0].slug : null);
+        const eventSlug = user.role === 'SUPER_ADMIN' ? null : ((user as any).participations.length === 1 ? (user as any).participations[0].event.slug : null);
 
         return NextResponse.json({
             status: true,
@@ -63,7 +67,7 @@ export async function POST(request: Request) {
                 role: user.role,
                 publicId: user.publicId,
                 eventSlug,
-                hasMultipleEvents: (user as any).events.length > 1
+                hasMultipleEvents: (user as any).participations.length > 1
             },
         });
 

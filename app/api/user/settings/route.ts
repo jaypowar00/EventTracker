@@ -24,7 +24,7 @@ export async function PATCH(request: Request) {
         // Fetch current user and handle potential non-existence
         const currentUser = await prisma.user.findUnique({
             where: { id: payload.userId },
-            include: { events: { select: { id: true } } }
+            include: { participations: { select: { eventId: true } } }
         });
 
         if (!currentUser) {
@@ -52,7 +52,7 @@ export async function PATCH(request: Request) {
                     oldUsername: currentUser.username,
                     newUsername: username
                 },
-                eventId: currentUser.events[0]?.id
+                eventId: currentUser.participations[0]?.eventId
             });
         }
 
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
                 details: {
                     message: 'User changed their own password'
                 },
-                eventId: currentUser.events[0]?.id
+                eventId: currentUser.participations[0]?.eventId
             });
         }
 

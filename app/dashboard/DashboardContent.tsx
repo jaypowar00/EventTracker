@@ -221,7 +221,7 @@ export default function DashboardContent({ initialUser }: DashboardContentProps)
                                             background: 'hsl(var(--foreground) / 0.05)',
                                             color: 'hsl(var(--muted-foreground))'
                                         }}>
-                                            📅 {new Date(event.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            📅 {new Date(event.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                                         </span>
                                     )}
                                 </div>
@@ -279,7 +279,7 @@ export default function DashboardContent({ initialUser }: DashboardContentProps)
                                         <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                                             {
                                                 (event.endDate || event.updatedAt) ?
-                                                    <span>Ended on {new Date(event.endDate || event.updatedAt).toLocaleDateString()}</span>
+                                                    <span>Ended on {new Date(event.endDate || event.updatedAt).toLocaleDateString('en-GB')}</span>
                                                     :
                                                     <span>Ended</span>
                                             }
@@ -313,7 +313,7 @@ export default function DashboardContent({ initialUser }: DashboardContentProps)
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                                 <span style={{ opacity: 0.7 }}>Starts:</span>
-                                <span>{selectedEvent?.startDate ? new Date(selectedEvent.startDate).toLocaleString() : 'TBA'}</span>
+                                <span>{selectedEvent?.startDate ? new Date(selectedEvent.startDate).toLocaleString('en-GB') : 'TBA'}</span>
                             </div>
                             {selectedEvent?.rules && (
                                 <div style={{ borderTop: '1px solid hsl(var(--primary) / 0.1)', paddingTop: '0.5rem', marginTop: '0.5rem', color: 'hsl(var(--muted-foreground))', fontSize: '0.85rem', fontStyle: 'italic' }}>

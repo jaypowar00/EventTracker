@@ -28,7 +28,7 @@ export async function PATCH(
         // Fetch target user for scoping check
         const targetUser = await prisma.user.findUnique({
             where: { id },
-            include: { events: { select: { id: true } } }
+            include: { participations: { select: { eventId: true } } }
         });
         if (!targetUser) {
             return NextResponse.json({ status: false, message: 'User not found' }, { status: 200 });
@@ -38,11 +38,11 @@ export async function PATCH(
         if (payload.role === 'EVENT_ADMIN') {
             const currentUser = await prisma.user.findUnique({
                 where: { id: payload.userId },
-                include: { events: { select: { id: true } } }
+                include: { participations: { select: { eventId: true } } }
             });
 
-            const adminEventIds = (currentUser as any).events.map((e: any) => e.id);
-            const targetUserEventIds = (targetUser as any).events.map((e: any) => e.id);
+            const adminEventIds = (currentUser as any).participations.map((p: any) => p.eventId);
+            const targetUserEventIds = (targetUser as any).participations.map((p: any) => p.eventId);
 
             // Allow if target is participant and shares at least one event with admin
             const hasCommonEvent = targetUserEventIds.some((id: string) => adminEventIds.includes(id));
@@ -70,7 +70,8 @@ export async function PATCH(
         if (eventIds !== undefined) {
             // Deduplicate IDs
             const uniqueEventIds = Array.from(new Set(eventIds)) as string[];
-            updateData.events = { set: uniqueEventIds.map((id: string) => ({ id })) };
+            // updateData.events removed. We handle participations manually in transaction.
+            updateData.participations = undefined; // Ensure we don't accidentally pass it if it was there? No, just don't set it.
             eventIds = uniqueEventIds; // Update the variable for later use in team creation
         }
 
@@ -126,7 +127,30 @@ export async function PATCH(
                 }
 
                 // Optional: Remove teams for events no longer associated?
-                // For now, keep them for history, or we could delete if empty.
+
+                // SYNC PARTICIPATIONS
+                if (eventIds && eventIds.length > 0) {
+                    // 1. Remove from events not in the new list
+                    await tx.eventParticipant.deleteMany({
+                        where: {
+                            userId: id,
+                            eventId: { notIn: eventIds }
+                        }
+                    });
+
+                    // 2. Add to new events (preserve existing)
+                    for (const eid of eventIds) {
+                        // We can use upsert to be safe and preserve data
+                        await tx.eventParticipant.upsert({
+                            where: { userId_eventId: { userId: id, eventId: eid } },
+                            create: { userId: id, eventId: eid },
+                            update: {}
+                        });
+                    }
+                } else if (eventIds && eventIds.length === 0) {
+                    // Removed from all events
+                    await tx.eventParticipant.deleteMany({ where: { userId: id } });
+                }
             }
 
             return updatedUser;
@@ -190,7 +214,7 @@ export async function DELETE(
         // 2. Get User for Logging and Scoping
         const user = await prisma.user.findUnique({
             where: { id },
-            include: { events: { select: { id: true } } }
+            include: { participations: { select: { eventId: true } } }
         });
 
         if (!user) {
@@ -201,11 +225,11 @@ export async function DELETE(
         if (payload.role === 'EVENT_ADMIN') {
             const currentUser = await prisma.user.findUnique({
                 where: { id: payload.userId },
-                include: { events: { select: { id: true } } }
+                include: { participations: { select: { eventId: true } } }
             });
 
-            const adminEventIds = (currentUser as any)?.events.map((e: any) => e.id) || [];
-            const targetUserEventIds = (user as any).events.map((e: any) => e.id);
+            const adminEventIds = (currentUser as any)?.participations.map((p: any) => p.eventId) || [];
+            const targetUserEventIds = (user as any).participations.map((p: any) => p.eventId);
             const hasCommonEvent = targetUserEventIds.some((id: string) => adminEventIds.includes(id));
 
             if (!currentUser || !hasCommonEvent || user.role !== 'PARTICIPANT') {

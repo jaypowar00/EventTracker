@@ -28,10 +28,10 @@ export async function GET(
         if (payload.role !== 'SUPER_ADMIN') {
             const user = await prisma.user.findUnique({
                 where: { id: payload.userId },
-                include: { events: { select: { id: true } } }
+                include: { participations: { select: { eventId: true } } }
             });
 
-            const isAssociated = user?.events.some(e => e.id === event.id);
+            const isAssociated = user?.participations.some(p => p.eventId === event.id);
             if (!user || user.role !== 'EVENT_ADMIN' || !isAssociated) {
                 return NextResponse.json({ status: false, message: 'Forbidden' }, { status: 200 });
             }
@@ -39,8 +39,8 @@ export async function GET(
 
         const users = await prisma.user.findMany({
             where: {
-                events: {
-                    some: { id: event.id }
+                participations: {
+                    some: { eventId: event.id }
                 },
                 role: 'PARTICIPANT'
             },

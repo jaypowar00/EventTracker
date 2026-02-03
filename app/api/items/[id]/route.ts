@@ -38,9 +38,9 @@ export async function PATCH(
         if (payload.role === 'EVENT_ADMIN') {
             const adminUser = await prisma.user.findUnique({
                 where: { id: payload.userId },
-                include: { events: { select: { id: true } } }
+                include: { participations: { select: { eventId: true } } }
             });
-            const adminEventIds = adminUser?.events.map((e: any) => e.id) || [];
+            const adminEventIds = adminUser?.participations.map((p: any) => p.eventId) || [];
             if (!adminEventIds.includes(item.eventId)) {
                 return NextResponse.json({ status: false, message: 'Forbidden: Scoped access required' }, { status: 200 });
             }
