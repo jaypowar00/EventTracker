@@ -51,10 +51,13 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
 
     // Handle Onboarding Trigger
     useEffect(() => {
-        if (user && user.hasSeenWelcome === false && user.role === 'PARTICIPANT') {
-            setIsWelcomeModalOpen(true);
+        if (user && event && user.role === 'PARTICIPANT') {
+            const userEvent = user.events?.find((e: any) => e.id === event.id);
+            if (userEvent && userEvent.hasSeenWelcome === false) {
+                setIsWelcomeModalOpen(true);
+            }
         }
-    }, [user]);
+    }, [user, event]);
 
     // Close dropdown on click outside
     useEffect(() => {
@@ -272,7 +275,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             // Mark as seen and ensure default team exists
             await fetch('/api/user/profile', {
                 method: 'PATCH',
-                body: JSON.stringify({ hasSeenWelcome: true })
+                body: JSON.stringify({ hasSeenWelcome: true, eventId: event.id })
             });
             await fetch('/api/teams', {
                 method: 'POST',
@@ -297,10 +300,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
             if (!data.status) throw new Error(data.message);
 
             // Mark welcome as seen if first time
-            if (!user.hasSeenWelcome) {
+            // Check if this specific event has seen welcome
+            const userEvent = user?.events?.find((e: any) => e.id === event.id);
+            if (userEvent && !userEvent.hasSeenWelcome) {
                 await fetch('/api/user/profile', {
                     method: 'PATCH',
-                    body: JSON.stringify({ hasSeenWelcome: true })
+                    body: JSON.stringify({ hasSeenWelcome: true, eventId: event.id })
                 });
             }
 
@@ -469,14 +474,20 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                             padding: '1rem 0.25rem',
                                             textAlign: 'center',
                                             borderRadius: '1.25rem',
-                                            border: `1.5px solid ${idx === 0 ? 'hsl(var(--primary) / 0.4)' : 'var(--border)'}`,
+                                            border: team.id === currentTeam?.id
+                                                ? '1.5px solid #3b82f6'
+                                                : `1.5px solid ${idx === 0 ? 'hsl(var(--primary) / 0.4)' : 'var(--border)'}`,
                                             marginBottom: '0',
                                             display: 'flex',
                                             flexDirection: 'column',
                                             justifyContent: 'center',
-                                            background: idx === 0 ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+                                            background: team.id === currentTeam?.id
+                                                ? 'rgba(59, 130, 246, 0.12)'
+                                                : (idx === 0 ? 'hsl(var(--primary) / 0.08)' : 'transparent'),
                                             position: 'relative',
-                                            boxShadow: idx === 0 ? '0 10px 30px -10px hsl(var(--primary) / 0.3)' : 'none',
+                                            boxShadow: team.id === currentTeam?.id
+                                                ? '0 10px 30px -10px rgba(59, 130, 246, 0.4)'
+                                                : (idx === 0 ? '0 10px 30px -10px hsl(var(--primary) / 0.3)' : 'none'),
                                             cursor: 'pointer',
                                             transition: 'transform 0.2s ease, background 0.2s ease',
                                             flexShrink: 0,
@@ -541,7 +552,7 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                                     borderBottom: '1px solid var(--border)',
                                                     cursor: 'pointer',
                                                     transition: 'background 0.2s ease',
-                                                    background: team.id === currentTeam?.id ? 'hsl(var(--primary) / 0.05)' : 'transparent'
+                                                    background: team.id === currentTeam?.id ? 'rgba(59, 130, 246, 0.08)' : 'transparent'
                                                 }}
                                                 className="leaderboard-row"
                                             >
@@ -551,12 +562,12 @@ export default function EventPage({ params }: { params: Promise<{ slug: string }
                                                 <td style={{ padding: '1rem 1.5rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                     <div style={{ width: '24px', height: '24px', borderRadius: '4px', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: AVATARS[team.iconIndex || 0] }} />
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span style={{ color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'inherit', fontWeight: team.id === currentTeam?.id ? 700 : 600 }}>
-                                                            {team.name} {team.id === currentTeam?.id && <span style={{ fontSize: '0.65rem', background: 'hsl(var(--primary))', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '1rem', marginLeft: '0.5rem', verticalAlign: 'middle' }}>YOUR TEAM</span>}
+                                                        <span style={{ color: team.id === currentTeam?.id ? '#3b82f6' : 'inherit', fontWeight: team.id === currentTeam?.id ? 700 : 600 }}>
+                                                            {team.name}
                                                         </span>
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontWeight: 700, color: team.id === currentTeam?.id ? 'hsl(var(--primary))' : 'inherit' }}>
+                                                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', fontWeight: 700, color: team.id === currentTeam?.id ? '#3b82f6' : 'inherit' }}>
                                                     {team.totalPoints > 0 ? `${formatPoints(team.totalPoints)} pts` : <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.75rem' }}>(unranked)</span>}
                                                 </td>
                                             </tr>

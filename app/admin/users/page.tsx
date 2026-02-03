@@ -314,7 +314,19 @@ export default function UserManagementPage() {
                                         {user.events && user.events.length > 0 ? (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                                                 {user.events.map((e: any, idx: number) => (
-                                                    <span key={`${e.id}-${idx}`} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', fontSize: '0.75rem' }}>{e.name}</span>
+                                                    <span key={`${e.id}-${idx}`} style={{
+                                                        background: e.hasSeenWelcome ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--destructive) / 0.1)',
+                                                        color: e.hasSeenWelcome ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '0.25rem',
+                                                        fontSize: '0.75rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}>
+                                                        {e.name}
+                                                        {!e.hasSeenWelcome && <span title="Has not seen welcome modal">•</span>}
+                                                    </span>
                                                 ))}
                                             </div>
                                         ) : (
@@ -357,7 +369,20 @@ export default function UserManagementPage() {
                                 {user.events && user.events.length > 0 ? (
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                                         {user.events.map((e: any, idx: number) => (
-                                            <span key={`${e.id}-${idx}`} style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500 }}>{e.name}</span>
+                                            <span key={`${e.id}-${idx}`} style={{
+                                                background: e.hasSeenWelcome ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--destructive) / 0.1)',
+                                                color: e.hasSeenWelcome ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '0.25rem',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 500,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem'
+                                            }}>
+                                                {e.name}
+                                                {!e.hasSeenWelcome && <span title="Has not seen welcome modal">•</span>}
+                                            </span>
                                         ))}
                                     </div>
                                 ) : (
