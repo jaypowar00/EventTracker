@@ -52,7 +52,7 @@ export async function GET(
 
             let totalPoints = 0;
             team.entries.forEach(entry => {
-                const points = entry.count * entry.item.defaultPoints;
+                const points = entry.pointsAwarded;
                 totalPoints += points;
                 memberPoints[entry.userId] = (memberPoints[entry.userId] || 0) + points;
             });
