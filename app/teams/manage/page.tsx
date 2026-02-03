@@ -14,6 +14,13 @@ const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data =>
     return data.data;
 });
 
+// Formatting Helper
+const formatPoints = (points: number) => {
+    if (points >= 1000000) return (points / 1000000).toFixed(1) + 'M';
+    if (points >= 1000) return (points / 1000).toFixed(1) + 'K';
+    return Math.round(points).toLocaleString();
+};
+
 export function ManageTeamContent() {
     const searchParams = useSearchParams();
     const urlEventId = searchParams.get('eventId');
@@ -253,7 +260,7 @@ export function ManageTeamContent() {
                                     <div style={{ width: '32px', height: '32px' }} dangerouslySetInnerHTML={{ __html: AVATARS[otherTeam.iconIndex || 0] }} />
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherTeam.name}</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>{otherTeam.totalPoints} pts</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>{formatPoints(otherTeam.totalPoints)} pts</div>
                                     </div>
                                     <span style={{ color: 'hsl(var(--primary))', fontSize: '0.75rem', fontWeight: 600 }}>Join</span>
                                 </button>
@@ -332,7 +339,7 @@ export function ManageTeamContent() {
                                             <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>ID: {member.publicId}</div>
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 800, color: 'hsl(var(--primary))', fontSize: '1rem' }}>{member.points} pts</div>
+                                            <div style={{ fontWeight: 800, color: 'hsl(var(--primary))', fontSize: '1rem' }}>{formatPoints(member.points)} pts</div>
                                         </div>
                                     </div>
                                 ))}
