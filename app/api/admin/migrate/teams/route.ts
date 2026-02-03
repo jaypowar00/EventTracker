@@ -24,7 +24,7 @@ export async function POST() {
             where: { role: 'PARTICIPANT' },
             include: {
                 memberships: true,
-                events: { select: { id: true } }
+                participations: { select: { event: { select: { id: true } } } }
             }
         } as any)) as any[];
 
@@ -35,7 +35,7 @@ export async function POST() {
             // Already has a team? Skip
             if (user.memberships.length > 0) continue;
 
-            const targetEvents = (user as any).events;
+            const targetEvents = (user as any).participations?.map((p: any) => p.event) || [];
             if (!targetEvents || targetEvents.length === 0) continue;
 
             for (const eventRef of targetEvents) {

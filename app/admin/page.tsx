@@ -188,6 +188,22 @@ export default function AdminDashboard() {
                             <span>👥</span> Users
                         </button>
                         <button
+                            onClick={() => window.location.href = '/admin/teams'}
+                            className="glass-panel"
+                            style={{
+                                padding: '0.625rem 1.25rem',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span>🏆</span> Teams
+                        </button>
+                        <button
                             onClick={() => window.location.href = '/admin/logs'}
                             className="glass-panel"
                             style={{
@@ -258,6 +274,7 @@ export default function AdminDashboard() {
                             gap: '0.25rem'
                         }}>
                             <button onClick={() => window.location.href = '/admin/users'} style={{ padding: '0.75rem 1rem', background: 'transparent', color: '#d1d5db', border: 'none', textAlign: 'left', cursor: 'pointer' }}>👥 Manage Users</button>
+                            <button onClick={() => window.location.href = '/admin/teams'} style={{ padding: '0.75rem 1rem', background: 'transparent', color: '#d1d5db', border: 'none', textAlign: 'left', cursor: 'pointer' }}>🏆 Manage Teams</button>
                             <button onClick={() => window.location.href = '/admin/logs'} style={{ padding: '0.75rem 1rem', background: 'transparent', color: '#d1d5db', border: 'none', textAlign: 'left', cursor: 'pointer' }}>📜 Activity Logs</button>
                             <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', margin: '0.25rem 0' }} />
                             <button onClick={handleLogout} style={{ padding: '0.75rem 1rem', background: 'transparent', color: '#ef4444', border: 'none', textAlign: 'left', cursor: 'pointer' }}>🚪 Logout</button>
@@ -295,6 +312,19 @@ export default function AdminDashboard() {
                         <button onClick={() => setIsAdminModalOpen(true)} className={`glass-panel ${styles.actionBtn}`} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: 'hsl(var(--primary) / 0.1)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
                             <span style={{ fontSize: '2rem' }}>👤</span>
                             <span style={{ fontWeight: 600, color: 'hsl(var(--primary))' }}>Add Admin</span>
+                        </button>
+                        <button onClick={async () => {
+                            if (!confirm('This will copy data from the legacy "EventUsers" table to the new "EventParticipant" table. Ensure you have run the migration to add the new table first. Proceed?')) return;
+                            try {
+                                const res = await fetch('/api/admin/migrate/legacy-data', { method: 'POST' });
+                                const data = await res.json();
+                                alert(data.message + (data.errors ? '\nErrors:\n' + data.errors.join('\n') : ''));
+                            } catch (err: any) {
+                                alert('Migration failed: ' + err.message);
+                            }
+                        }} className={`glass-panel ${styles.actionBtn}`} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                            <span style={{ fontSize: '2rem' }}>🔄</span>
+                            <span style={{ fontWeight: 600, color: '#f59e0b' }}>Migrate Data</span>
                         </button>
                     </div>
                 </div>
