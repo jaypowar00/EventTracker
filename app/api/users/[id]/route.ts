@@ -108,28 +108,24 @@ export async function PATCH(
                 for (const targetEventId of eventIds) {
                     if (!existingEventIds.includes(targetEventId)) {
                         const teamPublicId = await generateUniquePublicId(tx, 'team');
-                        const team = await tx.team.create({
+                        await tx.team.create({
                             data: {
                                 name: updatedUser.username,
                                 publicId: teamPublicId,
                                 eventId: targetEventId,
                                 iconIndex: (updatedUser as any).avatarIndex,
-                            }
-                        });
-
-                        await tx.teamMember.create({
-                            data: {
-                                userId: id,
-                                teamId: team.id
+                                members: {
+                                    create: {
+                                        userId: id
+                                    }
+                                }
                             }
                         });
                     }
                 }
 
-                // Optional: Remove teams for events no longer associated?
-
-                // SYNC PARTICIPATIONS
-                if (eventIds && eventIds.length > 0) {
+                // SYNC PARTICIPATIONS - Optimized
+                if (eventIds.length > 0) {
                     // 1. Remove from events not in the new list
                     await tx.eventParticipant.deleteMany({
                         where: {
@@ -138,22 +134,31 @@ export async function PATCH(
                         }
                     });
 
-                    // 2. Add to new events (preserve existing)
-                    for (const eid of eventIds) {
-                        // We can use upsert to be safe and preserve data
-                        await tx.eventParticipant.upsert({
-                            where: { userId_eventId: { userId: id, eventId: eid } },
-                            create: { userId: id, eventId: eid },
-                            update: {}
+                    // 2. Add to new events (batch create)
+                    const existingParticipations = await tx.eventParticipant.findMany({
+                        where: { userId: id },
+                        select: { eventId: true }
+                    });
+                    const existingPIds = existingParticipations.map((p: any) => p.eventId);
+
+                    const toCreate = eventIds.filter((eid: string) => !existingPIds.includes(eid));
+                    if (toCreate.length > 0) {
+                        await tx.eventParticipant.createMany({
+                            data: toCreate.map((eid: string) => ({
+                                userId: id,
+                                eventId: eid
+                            }))
                         });
                     }
-                } else if (eventIds && eventIds.length === 0) {
+                } else {
                     // Removed from all events
                     await tx.eventParticipant.deleteMany({ where: { userId: id } });
                 }
             }
 
             return updatedUser;
+        }, {
+            timeout: 10000 // 10 seconds timeout for complex user updates
         });
 
         // 4. Log Action
