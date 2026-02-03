@@ -1,12 +1,9 @@
 'use client';
 
 import useSWR from 'swr';
+import { fetcher, formatDateTime } from '@/lib/utils';
 import styles from '../dashboard.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
 
 export default function AuditLogsPage() {
     const { data: logs, error } = useSWR('/api/logs/list', fetcher, { refreshInterval: 10000 });
@@ -132,19 +129,7 @@ export default function AuditLogsPage() {
                                     logs.map((log: any) => (
                                         <tr key={log.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s ease', cursor: 'default' }} className="log-row">
                                             <td style={{ padding: '1.25rem 1.75rem', whiteSpace: 'nowrap', color: 'hsl(var(--muted-foreground))', fontSize: '0.85rem' }}>
-                                                {(() => {
-                                                    const d = new Date(log.timestamp);
-                                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                                    const month = months[d.getMonth()];
-                                                    const day = d.getDate();
-                                                    const year = d.getFullYear();
-                                                    let hours = d.getHours();
-                                                    const ampm = hours >= 12 ? 'PM' : 'AM';
-                                                    hours = hours % 12;
-                                                    hours = hours ? hours : 12; // the hour '0' should be '12'
-                                                    const minutes = d.getMinutes().toString().padStart(2, '0');
-                                                    return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
-                                                })()}
+                                                {formatDateTime(log.timestamp)}
                                             </td>
                                             <td style={{ padding: '1.25rem 1.75rem' }}>
                                                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{log.actorName}</div>
@@ -185,19 +170,7 @@ export default function AuditLogsPage() {
                             <div key={log.id} className="glass-panel" style={{ padding: '1.25rem', borderRadius: '1.25rem', border: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
-                                        {(() => {
-                                            const d = new Date(log.timestamp);
-                                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                            const month = months[d.getMonth()];
-                                            const day = d.getDate();
-                                            const year = d.getFullYear();
-                                            let hours = d.getHours();
-                                            const ampm = hours >= 12 ? 'PM' : 'AM';
-                                            hours = hours % 12;
-                                            hours = hours ? hours : 12;
-                                            const minutes = d.getMinutes().toString().padStart(2, '0');
-                                            return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
-                                        })()}
+                                        {formatDateTime(log.timestamp)}
                                     </span>
                                     <span style={{
                                         padding: '0.25rem 0.5rem',

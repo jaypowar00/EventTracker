@@ -4,22 +4,12 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { AVATARS } from '@/lib/avatars';
+import { fetcher, formatPoints } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import styles from '@/app/admin/dashboard.module.css';
 import loginStyles from '@/app/login.module.css';
 import modalStyles from '@/components/Modal.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
-
-// Formatting Helper
-const formatPoints = (points: number) => {
-    if (points >= 1000000) return (points / 1000000).toFixed(1) + 'M';
-    if (points >= 1000) return (points / 1000).toFixed(1) + 'K';
-    return Math.round(points).toLocaleString();
-};
 
 export function ManageTeamContent() {
     const searchParams = useSearchParams();

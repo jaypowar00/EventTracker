@@ -87,8 +87,8 @@ export async function POST(request: Request) {
                 const adminUser = await prisma.user.findUnique({
                     where: { id: payload.userId },
                     include: { events: { select: { id: true } } }
-                });
-                if (!adminUser || adminUser.events.length === 0) {
+                }) as any;
+                if (!adminUser || !adminUser.events || adminUser.events.length === 0) {
                     return NextResponse.json({ status: false, message: 'Admin has no events' }, { status: 200 });
                 }
                 targetEventIds = [adminUser.events[0].id]; // Default to first event for now

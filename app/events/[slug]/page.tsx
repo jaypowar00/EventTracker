@@ -4,25 +4,11 @@ import { use, useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import Modal from '@/components/Modal';
 import { AVATARS } from '@/lib/avatars';
+import { fetcher, formatPoints, formatTime12H } from '@/lib/utils';
 import styles from '@/app/admin/dashboard.module.css';
 import modalStyles from '@/components/Modal.module.css';
 import loginStyles from '@/app/login.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
-
-// Formatting Helpers
-const formatPoints = (points: number) => {
-    if (points >= 1000000) return (points / 1000000).toFixed(1) + 'M';
-    if (points >= 1000) return (points / 1000).toFixed(1) + 'K';
-    return Math.round(points).toLocaleString();
-};
-
-const formatTime12H = (date: string | Date) => {
-    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-};
 
 export default function EventPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = use(params);

@@ -3,14 +3,11 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import Modal from '@/components/Modal';
+import { fetcher } from '@/lib/utils';
 import styles from '../dashboard.module.css';
 import modalStyles from '@/components/Modal.module.css';
 import loginStyles from '../../login.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
 
 export default function UserManagementPage() {
     const { data: users, mutate: mutateUsers } = useSWR('/api/users/list', fetcher);

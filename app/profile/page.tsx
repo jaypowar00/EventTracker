@@ -3,13 +3,10 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { AVATARS } from '@/lib/avatars';
+import { fetcher } from '@/lib/utils';
 import styles from '@/app/admin/dashboard.module.css';
 import loginStyles from '@/app/login.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
 
 export default function ProfilePage() {
     const { data: user, mutate: mutateUser } = useSWR('/api/user/me', fetcher);

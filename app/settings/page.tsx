@@ -2,13 +2,10 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { fetcher } from '@/lib/utils';
 import styles from './settings.module.css'; // I'll create this or use shared
 import loginStyles from '../login.module.css';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).then(data => {
-    if (!data.status) throw new Error(data.message);
-    return data.data;
-});
 
 export default function SettingsPage() {
     const { data: user, mutate } = useSWR('/api/user/me', fetcher); // Need to create 'me' endpoint
