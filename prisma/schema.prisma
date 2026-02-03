@@ -19,7 +19,6 @@ model User {
   createdAt     DateTime  @default(now())
   
   // Participant Experience
-  hasSeenWelcome Boolean @default(false)
   avatarIndex    Int     @default(0)
   
   // Relations
@@ -27,7 +26,10 @@ model User {
   entries       Entry[]
   createdRequests TeamRequest[]
   
-  // Tie to multiple events
+  // Tie to multiple events via explicit relation
+  participations EventParticipant[]
+
+  // DEPRECATED: Keep for migration
   events        Event[]   @relation("EventUsers")
   
   // Track events created by this user (typically SUPER_ADMIN)
@@ -47,10 +49,24 @@ model Event {
   createdByUser   User   @relation("EventCreator", fields: [createdByUserId], references: [id])
 
   // Relations
-  users       User[]   @relation("EventUsers")
+  participants EventParticipant[]
+  users       User[]   @relation("EventUsers") // DEPRECATED: Keep for migration
   teams       Team[]
   items       Item[]
   rules       String?  // Event-specific rules/guidelines
+}
+
+model EventParticipant {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  hasSeenWelcome Boolean @default(false)
+  joinedAt  DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
 }
 
 model Team {
@@ -58,7 +74,7 @@ model Team {
   name        String
   publicId    String   @unique // Generated in code: 10000-99999
   eventId     String
-  event       Event    @relation(fields: [eventId], references: [id])
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   iconIndex   Int      @default(0)
   
@@ -88,7 +104,7 @@ model Item {
   defaultVolume     Int      @default(0) // volume in ml
   defaultPercentage Float    @default(0) // ABV percentage
   eventId           String
-  event             Event    @relation(fields: [eventId], references: [id])
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   
   entries           Entry[]
 }
